@@ -1,5 +1,4 @@
 import { Plus } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
@@ -7,36 +6,20 @@ import { GoalCard } from '@/components/GoalCard'
 import { GoalFormFields } from '@/components/GoalFormFields'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { WealthSkeleton } from '@/components/Skeleton'
-import {
-  Button,
-  Card,
-  EmptyState,
-  HeroCard,
-  Pill,
-  SectionTitle,
-} from '@/components/ui'
+import { Button, Card, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
+import { ChartCard, DonutChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
-import { calculateGoalMetrics, assetGainLoss } from '@/lib/calculations/goals'
+import { calculateGoalMetrics } from '@/lib/calculations/goals'
+import { allocationByGoal } from '@/lib/calculations/analytics'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import { toMinorUnits } from '@/lib/money'
 import type { GoalPriority } from '@/types/goal'
-import { AllocationList, ChartCard, DonutChart } from '@/components/charts'
-import {
-  allocationByCategory,
-  allocationByGoal,
-  allocationBySource,
-} from '@/lib/calculations/analytics'
-import {
-  ASSET_CATEGORY_LABELS,
-  ASSET_SOURCE_LABELS,
-  type Asset,
-} from '@/types/asset'
 import type { SupportedCurrency } from '@/types/user'
 
-type WealthTab = 'goals' | 'assets' | 'activity'
+type WealthTab = 'goals' | 'activity'
 
 export function WealthPage() {
   const { profile } = useAuth()
@@ -50,7 +33,6 @@ export function WealthPage() {
   const [targetDate, setTargetDate] = useState('2045-01-01')
   const [priority, setPriority] = useState<GoalPriority>('medium')
   const [busy, setBusy] = useState(false)
-  const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const allAssets = useMemo(
     () => finance.assets.filter((asset) => !asset.isDeleted),
@@ -66,11 +48,6 @@ export function WealthPage() {
     [finance.assets, finance.goals, asOf],
   )
 
-  const filterAssets = useMemo(() => {
-    if (filterCategory === 'all') return allAssets
-    return allAssets.filter((asset) => asset.category === filterCategory)
-  }, [allAssets, filterCategory])
-
   const totalWealth = allAssets.reduce((sum, asset) => sum + asset.currentValue, 0)
   const totalTarget = finance.goals
     .filter((goal) => !goal.isDeleted)
@@ -79,25 +56,6 @@ export function WealthPage() {
   const byGoal = useMemo(
     () => allocationByGoal(finance.goals, allAssets),
     [allAssets, finance.goals],
-  )
-  const byCategory = useMemo(
-    () =>
-      allocationByCategory(allAssets).map((item) => ({
-        name:
-          ASSET_CATEGORY_LABELS[item.name as keyof typeof ASSET_CATEGORY_LABELS] ??
-          item.name,
-        value: item.value,
-      })),
-    [allAssets],
-  )
-  const bySource = useMemo(
-    () =>
-      allocationBySource(allAssets).map((item) => ({
-        name:
-          ASSET_SOURCE_LABELS[item.name as keyof typeof ASSET_SOURCE_LABELS] ?? item.name,
-        value: item.value,
-      })),
-    [allAssets],
   )
 
   const activityItems = useMemo((): TimelineItem[] => {
@@ -210,26 +168,12 @@ export function WealthPage() {
         onChange={setTab}
         options={[
           { value: 'goals', label: 'Goals' },
-          { value: 'assets', label: 'Assets' },
           { value: 'activity', label: 'Activity' },
         ]}
       />
 
       {tab === 'goals' ? (
         <GoalsTab cards={cards} currency={currency} onCreate={() => setOpen(true)} />
-      ) : null}
-
-      {tab === 'assets' ? (
-        <AssetsTab
-          assets={filterAssets}
-          goals={finance.goals}
-          currency={currency}
-          filterCategory={filterCategory}
-          setFilterCategory={setFilterCategory}
-          byCategory={byCategory}
-          bySource={bySource}
-          totalWealth={totalWealth}
-        />
       ) : null}
 
       {tab === 'activity' ? (
@@ -316,130 +260,5 @@ function GoalsTab({
         ))}
       </div>
     </section>
-  )
-}
-
-function AssetsTab({
-  assets,
-  goals,
-  currency,
-  filterCategory,
-  setFilterCategory,
-  byCategory,
-  bySource,
-  totalWealth,
-}: {
-  assets: Asset[]
-  goals: { id: string; name: string }[]
-  currency: SupportedCurrency
-  filterCategory: string
-  setFilterCategory: (value: string) => void
-  byCategory: { name: string; value: number }[]
-  bySource: { name: string; value: number }[]
-  totalWealth: number
-}) {
-  const hasCharts = byCategory.length > 0 || bySource.length > 0
-
-  return (
-    <div className="space-y-6">
-      {hasCharts ? (
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {byCategory.length > 0 ? (
-            <ChartCard title="By category" className="flex flex-col justify-center py-3">
-              <DonutChart
-                compact
-                data={byCategory}
-                centerLabel="Total"
-                centerValue={formatMoney(totalWealth, currency, { compact: true })}
-                formatValue={(value) => formatMoney(value, currency, { compact: true })}
-              />
-            </ChartCard>
-          ) : null}
-          {bySource.length > 0 ? (
-            <ChartCard title="By source" className="py-3">
-              <AllocationList
-                data={bySource}
-                formatValue={(value) => formatMoney(value, currency, { compact: true })}
-                empty="Add assets to see source allocation"
-              />
-            </ChartCard>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <SectionTitle
-          title="All assets"
-          subtitle={
-            filterCategory === 'all'
-              ? 'Across your portfolio'
-              : `Showing ${ASSET_CATEGORY_LABELS[filterCategory as keyof typeof ASSET_CATEGORY_LABELS] ?? filterCategory}`
-          }
-        />
-        <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
-          <Pill active={filterCategory === 'all'} onClick={() => setFilterCategory('all')}>
-            All
-          </Pill>
-          {Object.entries(ASSET_CATEGORY_LABELS).map(([value, label]) => (
-            <Pill
-              key={value}
-              active={filterCategory === value}
-              onClick={() => setFilterCategory(value)}
-            >
-              {label}
-            </Pill>
-          ))}
-        </div>
-
-        {assets.length === 0 ? (
-          <EmptyState
-            title="No assets in this view"
-            body={
-              filterCategory === 'all'
-                ? 'Add assets to a goal to see them here.'
-                : 'Try another category or add a matching asset.'
-            }
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {assets.map((asset) => {
-              const goal = goals.find((entry) => entry.id === asset.goalId)
-              const gain = assetGainLoss(asset)
-              return (
-                <Link key={asset.id} to={`/wealth/${asset.goalId}`} className="block">
-                  <Card className="transition-transform active:scale-[0.99]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-ink dark:text-white">{asset.name}</h3>
-                        <p className="mt-0.5 text-sm text-ink-muted">
-                          {ASSET_CATEGORY_LABELS[asset.category]} · {ASSET_SOURCE_LABELS[asset.source]}
-                        </p>
-                        {goal ? <p className="mt-1 text-xs text-accent">{goal.name}</p> : null}
-                      </div>
-                      <div className="text-right">
-                        <p className="font-display text-lg font-semibold text-ink dark:text-white">
-                          {formatMoney(asset.currentValue, currency, { compact: true })}
-                        </p>
-                        <p
-                          className={`text-xs font-medium ${gain >= 0 ? 'text-success' : 'text-danger'}`}
-                        >
-                          {gain >= 0 ? '↑' : '↓'}{' '}
-                          {formatMoney(Math.abs(gain), currency, { compact: true })}
-                        </p>
-                      </div>
-                    </div>
-                    {asset.monthlyInvestment ? (
-                      <p className="mt-2 text-xs text-ink-muted">
-                        SIP {formatMoney(asset.monthlyInvestment, currency, { compact: true })} / month
-                      </p>
-                    ) : null}
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </section>
-    </div>
   )
 }

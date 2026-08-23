@@ -19,7 +19,7 @@ export function Button({
         variant === 'primary' &&
           'bg-accent text-white shadow-[var(--shadow-soft)] hover:bg-accent-hover',
         variant === 'secondary' &&
-          'border border-ink/8 bg-surface text-ink hover:bg-canvas dark:border-white/10 dark:bg-surface-dark dark:text-white',
+          'border border-ink/8 bg-surface text-ink hover:bg-ink/5 dark:border-white/10 dark:bg-surface-dark dark:text-white dark:hover:bg-white/10',
         variant === 'ghost' && 'text-ink-muted hover:bg-ink/5 dark:hover:bg-white/5',
         variant === 'danger' && 'bg-danger text-white hover:opacity-90',
         variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/15',

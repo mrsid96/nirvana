@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, RefreshCw } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Banknote, RefreshCw } from 'lucide-react'
 import { formatDisplayDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import type { SupportedCurrency } from '@/types/user'
@@ -10,7 +10,7 @@ export type TimelineItem = {
   title: string
   subtitle?: string
   amount: number
-  type: 'investment' | 'withdrawal' | 'update' | 'expense' | 'income'
+  type: 'investment' | 'withdrawal' | 'update' | 'expense' | 'income' | 'loan-payment'
   onDelete?: () => void
 }
 
@@ -36,13 +36,26 @@ function groupByDate(items: TimelineItem[]): { label: string; items: TimelineIte
 function iconFor(type: TimelineItem['type']) {
   if (type === 'investment' || type === 'income') return ArrowDownLeft
   if (type === 'withdrawal' || type === 'expense') return ArrowUpRight
+  if (type === 'loan-payment') return Banknote
   return RefreshCw
 }
 
 function colorFor(type: TimelineItem['type']) {
   if (type === 'investment' || type === 'income') return 'bg-mint/15 text-mint'
   if (type === 'withdrawal' || type === 'expense') return 'bg-peach/15 text-peach'
+  if (type === 'loan-payment') return 'bg-accent/15 text-accent'
   return 'bg-accent/15 text-accent'
+}
+
+function amountClass(type: TimelineItem['type']) {
+  if (type === 'investment' || type === 'income') return 'text-success'
+  if (type === 'loan-payment') return 'text-ink dark:text-white'
+  return 'text-ink dark:text-white'
+}
+
+function amountPrefix(type: TimelineItem['type']) {
+  if (type === 'investment' || type === 'income') return '+'
+  return ''
 }
 
 export function ActivityTimeline({
@@ -97,12 +110,10 @@ export function ActivityTimeline({
                       <span
                         className={cn(
                           'font-display shrink-0 text-sm font-semibold',
-                          item.type === 'investment' || item.type === 'income'
-                            ? 'text-success'
-                            : 'text-ink dark:text-white',
+                          amountClass(item.type),
                         )}
                       >
-                        {item.type === 'investment' || item.type === 'income' ? '+' : ''}
+                        {amountPrefix(item.type)}
                         {formatMoney(item.amount, currency, { compact: true })}
                       </span>
                     </div>

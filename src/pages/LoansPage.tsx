@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
+import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
+import { SegmentedControl } from '@/components/SegmentedControl'
 import {
   Button,
   Card,
@@ -12,6 +14,7 @@ import {
   HeroCard,
   Input,
   Progress,
+  SectionTitle,
 } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
 import { LoanCard } from '@/components/LoanCard'
@@ -29,11 +32,14 @@ import { toMinorUnits } from '@/lib/money'
 import type { Loan } from '@/types/loan'
 import { ChartCard, DonutChart } from '@/components/charts'
 
+type LoansTab = 'loans' | 'activity'
+
 export function LoansPage() {
   const { profile } = useAuth()
   const finance = useFinance()
   const currency = profile?.currency ?? 'INR'
   const asOf = todayIsoDate()
+  const [tab, setTab] = useState<LoansTab>('loans')
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
@@ -53,6 +59,28 @@ export function LoansPage() {
         .map((loan) => ({ name: loan.name, value: loan.outstandingAmount })),
     [finance.loans],
   )
+
+  const totalDebt = totalOutstanding(finance.loans)
+  const totalPaidAmount = totalPaid(finance.loans)
+  const monthlyEmi = totalMonthlyEmi(finance.loans)
+
+  const activityItems = useMemo((): TimelineItem[] => {
+    return finance.loanPayments
+      .filter((payment) => !payment.isDeleted)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 30)
+      .map((payment) => {
+        const loan = finance.loans.find((item) => item.id === payment.loanId)
+        return {
+          id: payment.id,
+          date: payment.date,
+          title: 'Loan payment',
+          subtitle: [loan?.name, payment.note].filter(Boolean).join(' · '),
+          amount: payment.amount,
+          type: 'loan-payment',
+        }
+      })
+  }, [finance.loanPayments, finance.loans])
 
   async function onCreate(event: FormEvent) {
     event.preventDefault()
@@ -102,60 +130,93 @@ export function LoansPage() {
         </Button>
       </header>
 
-      <HeroCard gradient="violet">
-        <p className="text-sm font-medium text-white/80">Total remaining</p>
-        <p className="font-display mt-1 text-[36px] font-semibold leading-none">
-          {formatMoney(totalOutstanding(finance.loans), currency, { compact: true })}
-        </p>
-        <p className="mt-3 text-sm text-white/75">
-          {formatMoney(totalPaid(finance.loans), currency, { compact: true })} paid so far
-        </p>
-        <div className="mt-4 rounded-[14px] bg-white/12 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-xs text-white/70">Monthly EMI</p>
-          <p className="font-display mt-0.5 text-lg font-semibold">
-            {formatMoney(totalMonthlyEmi(finance.loans), currency, { compact: true })}
+      <section
+        className={
+          outstandingByLoan.length > 0
+            ? 'grid gap-4 lg:grid-cols-2 lg:items-stretch'
+            : 'space-y-4'
+        }
+      >
+        <HeroCard gradient="violet" className="flex flex-col justify-between lg:h-[200px] lg:py-4">
+          <p className="text-sm font-medium text-white/80">Total remaining</p>
+          <p className="font-display mt-0.5 text-[32px] font-semibold leading-none tracking-tight lg:text-[36px]">
+            {formatMoney(totalDebt, currency, { compact: true })}
           </p>
-        </div>
-      </HeroCard>
+          <p className="mt-1.5 text-sm text-white/75">
+            {formatMoney(totalPaidAmount, currency, { compact: true })} paid so far
+          </p>
+          <div className="mt-3 rounded-[14px] bg-white/12 px-3 py-2 backdrop-blur-sm">
+            <p className="text-xs text-white/70">Monthly EMI</p>
+            <p className="font-display mt-0.5 text-sm font-semibold lg:text-base">
+              {formatMoney(monthlyEmi, currency, { compact: true })}
+            </p>
+          </div>
+        </HeroCard>
 
-      {outstandingByLoan.length > 0 ? (
-        <ChartCard
-          title="Outstanding balance by loan"
-          subtitle="Current share of total debt"
-        >
-          <DonutChart
-            data={outstandingByLoan}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
+        {outstandingByLoan.length > 0 ? (
+          <ChartCard className="flex flex-col justify-center rounded-[24px] py-3 lg:h-[200px]">
+            <DonutChart
+              compact
+              data={outstandingByLoan}
+              centerLabel="Total debt"
+              centerValue={formatMoney(totalDebt, currency, { compact: true })}
+              formatValue={(value) => formatMoney(value, currency, { compact: true })}
+            />
+          </ChartCard>
+        ) : null}
+      </section>
+
+      <SegmentedControl
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'loans', label: 'Loans' },
+          { value: 'activity', label: 'Activity' },
+        ]}
+      />
+
+      {tab === 'loans' ? (
+        finance.loans.length === 0 ? (
+          <EmptyState
+            title="No loans tracked"
+            body="Nothing here yet. Add a loan when you're ready."
+            action={<Button onClick={() => setOpen(true)}>Add loan</Button>}
           />
-        </ChartCard>
+        ) : (
+          <div className="space-y-3">
+            {finance.loans.map((loan) => {
+              const metrics = calculateLoanMetrics(loan, asOf)
+              return (
+                <LoanCard
+                  key={loan.id}
+                  loanId={loan.id}
+                  name={loan.name}
+                  outstanding={metrics.outstandingAmount}
+                  progress={metrics.progressPercent}
+                  emi={metrics.emiAmount}
+                  rate={loan.interestRate}
+                  monthsRemaining={metrics.remainingMonths}
+                  currency={currency}
+                  variant="calm"
+                />
+              )
+            })}
+          </div>
+        )
       ) : null}
 
-      {finance.loans.length === 0 ? (
-        <EmptyState
-          title="No loans tracked"
-          body="Nothing here yet. Add a loan when you're ready."
-          action={<Button onClick={() => setOpen(true)}>Add loan</Button>}
-        />
-      ) : (
-        <div className="space-y-3">
-          {finance.loans.map((loan) => {
-            const metrics = calculateLoanMetrics(loan, asOf)
-            return (
-              <LoanCard
-                key={loan.id}
-                loanId={loan.id}
-                name={loan.name}
-                outstanding={metrics.outstandingAmount}
-                progress={metrics.progressPercent}
-                emi={metrics.emiAmount}
-                rate={loan.interestRate}
-                currency={currency}
-                variant="calm"
-              />
-            )
-          })}
-        </div>
-      )}
+      {tab === 'activity' ? (
+        <section className="space-y-3">
+          <SectionTitle title="Recent payments" subtitle="EMIs and extra payments across loans" />
+          <Card variant="flat">
+            <ActivityTimeline
+              items={activityItems}
+              currency={currency}
+              emptyMessage="No payments recorded yet. Record a payment from a loan detail page."
+            />
+          </Card>
+        </section>
+      ) : null}
 
       <FormPanel open={open} onOpenChange={setOpen} title="Add loan">
         <LoanForm
@@ -196,7 +257,6 @@ export function LoanDetailPage() {
   const loan = finance.loans.find((item) => item.id === loanId)
   const metrics = loan ? calculateLoanMetrics(loan, todayIsoDate()) : null
   useSetPageTitle(loan?.name ?? null)
-  useSetPageTitle(loan?.name ?? null)
   const payments = useMemo(
     () =>
       finance.loanPayments
@@ -204,6 +264,18 @@ export function LoanDetailPage() {
         .sort((a, b) => b.date.localeCompare(a.date)),
     [finance.loanPayments, loanId],
   )
+
+  const paymentItems = useMemo((): TimelineItem[] => {
+    return payments.map((payment) => ({
+      id: payment.id,
+      date: payment.date,
+      title: payment.amount === loan?.emiAmount ? 'EMI payment' : 'Extra payment',
+      subtitle: payment.note || loan?.bank,
+      amount: payment.amount,
+      type: 'loan-payment',
+    }))
+  }, [payments, loan?.bank, loan?.emiAmount])
+
   const [confirm, setConfirm] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [name, setName] = useState(loan?.name ?? '')
@@ -371,24 +443,30 @@ export function LoanDetailPage() {
       </Card>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Payments</h2>
-          <Button onClick={() => setPayOpen(true)}>Record payment</Button>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-ink dark:text-white">Payments</h2>
+            <p className="text-sm text-ink-muted">
+              {payments.length === 0
+                ? 'No payments recorded yet'
+                : `${payments.length} payment${payments.length === 1 ? '' : 's'} · ${formatMoney(
+                    metrics.paidAmount,
+                    currency,
+                    { compact: true },
+                  )} total`}
+            </p>
+          </div>
+          <Button onClick={() => setPayOpen(true)} className="shrink-0">
+            Record payment
+          </Button>
         </div>
-        {payments.length === 0 ? (
-          <p className="text-sm text-stone-500">
-            No payments recorded yet. Use Loan pay on Home or record here.
-          </p>
-        ) : (
-          payments.map((item) => (
-            <div key={item.id} className="flex items-center justify-between text-sm">
-              <span className="text-stone-500">{item.date}</span>
-              <span className="font-medium">
-                {formatMoney(item.amount, currency, { compact: true })}
-              </span>
-            </div>
-          ))
-        )}
+        <Card variant="flat">
+          <ActivityTimeline
+            items={paymentItems}
+            currency={currency}
+            emptyMessage="No payments recorded yet. Record your first EMI or extra payment."
+          />
+        </Card>
       </section>
 
       <ConfirmBar

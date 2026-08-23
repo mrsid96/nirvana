@@ -60,13 +60,21 @@ export function WealthSkeleton() {
 
 export function GoalDetailSkeleton() {
   return (
-    <div className="space-y-5" aria-busy aria-label="Loading goal">
-      <Skeleton className="mx-auto h-52 w-52 rounded-full" />
-      <Skeleton className="h-32 w-full rounded-[20px]" />
-      <Skeleton className="h-24 w-full rounded-[20px]" />
+    <div className="space-y-6" aria-busy aria-label="Loading goal">
+      <div className="flex justify-between">
+        <Skeleton className="h-5 w-40" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-16 rounded-[14px]" />
+          <Skeleton className="h-9 w-16 rounded-[14px]" />
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-96 w-full rounded-[20px]" />
+        <Skeleton className="h-96 w-full rounded-[20px]" />
+      </div>
+      <Skeleton className="h-11 w-full rounded-[14px]" />
       <div className="space-y-3">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-28 w-full rounded-[20px]" />
+        <Skeleton className="h-40 w-full rounded-[20px]" />
         <Skeleton className="h-28 w-full rounded-[20px]" />
       </div>
     </div>
