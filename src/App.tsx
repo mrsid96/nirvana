@@ -93,7 +93,10 @@ function Guard({
 }) {
   const { user, profile, loading, configured } = useAuth()
   if (loading) return <LoadingScreen />
-  if (!configured || !user) return <Navigate to="/login" replace />
+  if (!configured || !user) {
+    if (onboarding) return <Navigate to="/login" replace />
+    return <LoginPage />
+  }
   if (!profile?.onboardingComplete && !onboarding)
     return <Navigate to="/onboarding" replace />
   if (profile?.onboardingComplete && onboarding) return <Navigate to="/" replace />

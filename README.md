@@ -1,293 +1,502 @@
-# Codex Wealth — Personal Wealth Creation & Budget Allocation Tracker
+# Wealth Tracker
 
-A **mobile-first PWA** for tracking personal wealth goals, investments, loans, and monthly cash flow. Built with React, TypeScript, Firebase, and Tailwind CSS.
+> **Your money. Your goals. Your wealth journey.**
 
-> **My personal financial command center.**
+Wealth Tracker is a personal financial planning and tracking application that brings **wealth goals, investments, loans, income and expenses** together in one simple, visual experience.
 
----
-
-## Features
-
-- **Dashboard** — Net position, monthly cash flow, quick actions, goal & loan progress at a glance.
-- **Wealth** — Create goals, add assets (MF, FD, RD, ETF, Stocks, Gold, PPF, NPS, Cash), track investments & withdrawals, view CAGR projections.
-- **Loans** — Track loans, EMIs, outstanding balances, payments, and loan burden.
-- **Cash Flow** — Monthly income vs expenses vs investments vs loans, with free cash flow.
-- **Profile** — Google profile, country, currency, theme, data export.
-- **PWA** — Installable, offline app shell, responsive mobile-first UI.
+The application helps users understand where their money is going, how much they are building, what they owe, and whether they are progressing toward their long-term financial goals.
 
 ---
 
-## Tech Stack
+# 🏠 Dashboard
 
-- **Frontend**: React 19 + TypeScript + Vite
-- **Routing**: React Router 7
-- **Styling**: Tailwind CSS 4
-- **Components**: Custom UI + Vaul (bottom sheets)
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Forms**: React Hook Form + Zod (validation schemas provided)
-- **Dates**: date-fns
-- **Backend**: Firebase Auth + Cloud Firestore
-- **PWA**: vite-plugin-pwa
-- **Testing**: Vitest + React Testing Library
-- **Linting**: Oxlint / ESLint
+The Dashboard provides a complete snapshot of the user's financial position.
+
+### Financial Overview
+
+View:
+
+* Total wealth
+* Total investments
+* Total loans
+* Outstanding debt
+* Net financial position
+* Monthly income
+* Monthly expenses
+* Monthly investments
+* Monthly loan payments
+* Available/free cash flow
+
+### Monthly Cash Flow
+
+Select any month and see:
+
+* Money coming in
+* Money spent
+* Money invested
+* Loan payments
+* Money remaining
+
+### Quick Actions
+
+Quickly add:
+
+* Expense
+* Income
+* Investment
+* Withdrawal
+* Loan payment
+
+### Financial Insights
+
+View simple indicators such as:
+
+* Savings rate
+* Investment rate
+* Loan burden
+* Overall wealth progress
+
+### Visual Analytics
+
+The Dashboard provides charts showing:
+
+* Wealth growth
+* Monthly cash flow
+* Goal performance
+* Investment allocation
+* Loan progress
 
 ---
 
-## Local Setup
+# 🎯 Wealth Goals
 
-```bash
-# Install dependencies
-npm install
+Create and manage multiple financial goals.
 
-# Copy environment variables
-cp .env.example .env.local
+Examples:
 
-# Run dev server
-npm run dev
+* Retirement
+* Emergency Fund
+* Child Education
+* Child Marriage
+* Home
+* Car
+* Travel
+* Wealth Creation
+* Custom goals
+
+Each goal can have:
+
+* Goal name
+* Description
+* Target amount
+* Start date
+* Target date
+* Priority
+* Status
+
+---
+
+# 📈 Goal Progress
+
+Track the progress of every goal.
+
+For each goal, see:
+
+* Current wealth
+* Target amount
+* Remaining amount
+* Percentage completed
+* Monthly planned investment
+* Expected CAGR
+* Projected future value
+* Required monthly investment
+* Projected shortfall or surplus
+* Target date
+
+The application visually shows whether a goal is:
+
+* Ahead
+* On Track
+* Behind
+* Completed
+
+---
+
+# 💎 Investment & Asset Tracking
+
+Add multiple assets to every wealth goal.
+
+Supported assets include:
+
+* Mutual Funds
+* Fixed Deposits
+* Recurring Deposits
+* ETFs
+* Stocks
+* Gold
+* PPF
+* NPS
+* Cash
+* Other
+
+For every asset, track:
+
+* Asset name
+* Category
+* Investment source
+* Amount invested
+* Current value
+* Expected CAGR
+* Monthly investment
+* SIP date
+* Start date
+* End date
+
+---
+
+# 📅 Investment Planning
+
+Plan investments for individual assets.
+
+Track:
+
+* One-time investments
+* Monthly investments
+* SIP amount
+* Planned investment date
+* Expected CAGR
+* Investment duration
+
+Use these values to understand how planned investments may contribute toward future wealth goals.
+
+---
+
+# 🔄 Investment Activity
+
+Track the movement of money into and out of investments.
+
+Record:
+
+* Investments
+* Withdrawals
+* Current asset value
+
+View:
+
+* Total invested
+* Total withdrawn
+* Net invested amount
+* Current value
+* Gain/loss
+
+---
+
+# 💸 Withdrawals
+
+Record withdrawals from any investment asset.
+
+For every goal, see:
+
+* Total withdrawals
+* Withdrawals by asset
+* Withdrawals by month
+* Net contribution after withdrawals
+
+Also view cumulative withdrawals across all goals.
+
+---
+
+# 📊 Wealth Analytics
+
+Understand wealth from different perspectives.
+
+### Goal Allocation
+
+See how your overall wealth targets are distributed across goals.
+
+### Asset Allocation
+
+See how your current wealth is distributed across:
+
+* Mutual Funds
+* FD
+* RD
+* ETFs
+* Stocks
+* Gold
+* PPF
+* NPS
+* Cash
+* Other
+
+### Investment Source
+
+See where your investments are held:
+
+* Zerodha
+* Groww
+* Banks
+* Other
+
+### Withdrawal Analysis
+
+Understand withdrawals across:
+
+* Goals
+* Assets
+* Time periods
+
+---
+
+# 🚀 Wealth Projections
+
+Project the future value of your wealth based on:
+
+* Current investments
+* Monthly investments
+* Expected CAGR
+* Remaining duration
+
+See:
+
+* Projected future wealth
+* Expected goal value
+* Potential shortfall
+* Potential surplus
+* Required monthly investment
+
+This makes it easier to understand whether the current plan is sufficient to reach a goal.
+
+---
+
+# 🏦 Loans
+
+Track multiple loans in one place.
+
+For every loan, maintain:
+
+* Loan name
+* Description
+* Purpose
+* Bank
+* Original amount
+* Outstanding amount
+* Interest rate
+* Tenure
+* Start date
+* EMI amount
+* EMI deduction date
+* Deduction bank
+* Loan status
+
+---
+
+# 📉 Loan Progress
+
+Understand how each loan is progressing.
+
+View:
+
+* Original loan amount
+* Amount paid
+* Amount remaining
+* Percentage paid
+* EMI
+* Interest rate
+* Remaining tenure
+
+Compare all loans to understand your overall debt position.
+
+---
+
+# 💳 Loan Payments
+
+Record payments against individual loans.
+
+Track:
+
+* Payment amount
+* Principal paid
+* Interest paid
+* Payment date
+* Payment history
+
+See cumulative loan payments across all loans.
+
+---
+
+# 💵 Income
+
+Track all sources of income.
+
+Examples:
+
+* Salary
+* Bonus
+* Freelance
+* Interest
+* Other income
+
+View income by:
+
+* Month
+* Source
+* Amount
+
+---
+
+# 🛒 Expenses
+
+Quickly record everyday expenses.
+
+Expense categories include:
+
+* Food
+* Groceries
+* Transport
+* Utilities
+* Shopping
+* Entertainment
+* Health
+* Education
+* Home
+* Travel
+* EMI
+* Insurance
+* Other
+
+Track:
+
+* Amount
+* Category
+* Description
+* Date
+* Payment source
+
+Expenses automatically contribute to monthly cash-flow analysis.
+
+---
+
+# 📅 Monthly Financial View
+
+For every month, understand:
+
+**Income → Expenses → Investments → Loans → Remaining Cash**
+
+Compare different months to understand changes in:
+
+* Spending
+* Investment
+* Savings
+* Debt payments
+* Cash flow
+
+---
+
+# ❤️ Financial Health
+
+Get a simple overview of your financial position using:
+
+* Savings rate
+* Investment rate
+* Loan burden
+* Wealth progress
+* Goal progress
+
+The application provides an easy-to-understand view of whether your overall financial position is improving.
+
+---
+
+# 👤 Profile
+
+Manage personal financial preferences.
+
+Profile includes:
+
+* Name
+* Email
+* Profile picture
+* Country
+* Currency
+* Theme preference
+
+Currency can be configured according to the user's location and preference.
+
+---
+
+# ⚡ Quick & Easy Tracking
+
+The application is designed so everyday financial actions take only a few seconds.
+
+A floating action button provides instant access to:
+
+* Add Expense
+* Add Income
+* Add Investment
+* Add Withdrawal
+* Add Loan Payment
+
+The goal is to make financial tracking simple enough to maintain consistently.
+
+---
+
+# 📱 Mobile Experience
+
+The application is designed to feel like a modern mobile app.
+
+It provides:
+
+* Mobile-first interface
+* Installable experience
+* Simple navigation
+* Quick actions
+* Friendly visualizations
+* Responsive desktop experience
+
+---
+
+# 🌱 The Complete Financial Picture
+
+Wealth Tracker brings everything together:
+
+```text
+                    YOUR FINANCIAL LIFE
+
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+       INCOME           WEALTH             DEBT
+          │                │                │
+       Salary          Goals              Loans
+       Bonus           Assets              EMI
+       Other           Investments         Payments
+          │                │                │
+          └────────────────┼────────────────┘
+                           │
+                        CASH FLOW
+                           │
+                           ▼
+                    FINANCIAL PROGRESS
 ```
 
----
+The application ultimately helps answer:
 
-## Firebase Project Setup
+### How much money do I have?
 
-1. Go to [Firebase Console](https://console.firebase.google.com/) and create a new project.
-2. Enable **Authentication** → **Sign-in method** → **Google**.
-3. Create a **Cloud Firestore** database (production mode).
-4. Copy your Firebase web app config into `.env.local`:
+### Where is my money going?
 
-```env
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-VITE_FIREBASE_APP_ID=your-app-id
-VITE_USE_FIREBASE_EMULATOR=false
-```
+### How much am I investing?
 
-**Important**: Firebase client config is **not a secret**. Security comes from Firestore security rules + Firebase Auth.
+### How much debt do I have?
+
+### How are my investments performing?
+
+### Are my goals on track?
+
+### What will my wealth potentially look like in the future?
 
 ---
 
-## Firestore Setup
+# ✨ Wealth Tracker
 
-### Deploy Rules
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Login
-firebase login
-
-# Deploy Firestore rules
-firebase deploy --only firestore:rules
-```
-
-### Deploy Indexes
-
-```bash
-firebase deploy --only firestore:indexes
-```
-
-**Indexes configured in `firestore.indexes.json`:**
-
-- Goals: `status + targetDate`
-- Assets: `goalId + isActive`
-- Expenses: `date`
-- Income: `date`
-- Loans: `status`
-
----
-
-## Firestore Data Model
-
-```
-users/{uid}
-users/{uid}/profile/settings
-users/{uid}/goals/{goalId}
-users/{uid}/goals/{goalId}/assets/{assetId}
-users/{uid}/goals/{goalId}/assets/{assetId}/transactions/{transactionId}
-users/{uid}/loans/{loanId}
-users/{uid}/loans/{loanId}/payments/{paymentId}
-users/{uid}/expenses/{expenseId}
-users/{uid}/income/{incomeId}
-users/{uid}/monthlySnapshots/{YYYY-MM}
-```
-
-Every document is **user-rooted** and protected by Firestore security rules that verify `request.auth.uid == uid`.
-
----
-
-## Firestore Security Rules
-
-Rules are in `firestore.rules`. Key principles:
-
-- Every document must be owned by the authenticated user.
-- `allow read, write: if request.auth != null && request.auth.uid == uid`.
-- No public access to any document.
-- Field-level validation (e.g., amounts are valid integers, dates are valid strings).
-
-**Never** allow:
-
-```
-allow read, write: if true;
-```
-
----
-
-## Environment Variables
-
-| Variable                            | Description                           |
-| ----------------------------------- | ------------------------------------- |
-| `VITE_FIREBASE_API_KEY`             | Firebase API key                      |
-| `VITE_FIREBASE_AUTH_DOMAIN`         | Firebase auth domain                  |
-| `VITE_FIREBASE_PROJECT_ID`          | Firebase project ID                   |
-| `VITE_FIREBASE_STORAGE_BUCKET`      | Storage bucket (can be empty for MVP) |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Sender ID                             |
-| `VITE_FIREBASE_APP_ID`              | App ID                                |
-| `VITE_USE_FIREBASE_EMULATOR`        | `true` = use local Firebase emulator  |
-
----
-
-## Firebase Emulator (Development)
-
-Use the emulator suite to avoid touching production Firestore during development.
-
-```bash
-# Install Firebase CLI (once)
-npm install -g firebase-tools
-
-# Start emulators (Firestore + Auth UI at http://localhost:4000)
-firebase emulators:start
-
-# In another terminal, run the app against emulators
-cp .env.example .env.local
-# Set VITE_USE_FIREBASE_EMULATOR=true in .env.local
-npm run dev
-```
-
-With emulators running, sign in with a test Google account or the Auth emulator's test users.
-
-### Demo data
-
-In development builds only, Profile → **Load demo data** seeds sample goals, assets, loans, income, and expenses into the signed-in account. This never runs automatically.
-
----
-
-The PWA is configured in `vite.config.ts` using `vite-plugin-pwa`:
-
-- Web app manifest (name, icons, theme color)
-- Service worker (auto-update + cache static assets)
-- Offline application shell
-- Standalone display + portrait orientation
-
-Icons are in `public/icons/`.
-
----
-
-## Cloudflare Pages Deployment
-
-### Option A — GitHub + Cloudflare Pages (recommended)
-
-1. Push this repo to GitHub.
-2. In Cloudflare Pages → Create project → Connect GitHub repo.
-3. Build command: `npm run build`
-4. Build output directory: `dist`
-5. Environment variables: set the same `VITE_FIREBASE_*` variables.
-
-### Option B — Direct upload (CLI)
-
-```bash
-npm run build
-npx wrangler pages deploy dist
-```
-
----
-
-## Production Build
-
-```bash
-npm run build
-```
-
-This runs TypeScript type-checking then Vite production build with PWA generation.
-
----
-
-## Testing
-
-```bash
-# Run once
-npm test
-
-# Watch mode
-npm run test:watch
-```
-
-### Covered calculations
-
-- CAGR (lump sum, monthly SIP, required contribution)
-- Goal progress (zero/partial/complete/over-target)
-- Loan progress (zero/full/partial)
-- Cash flow (income, expenses, investments, withdrawals, loans)
-- Financial health labels
-- Goal projection (current value, on-track detection, withdrawals)
-
----
-
-## Architecture
-
-```
-Component
-   ↓
-Hook (context)
-   ↓
-Service (Firestore access)
-   ↓
-Firestore
-```
-
-Calculations:
-
-```
-Component
-   ↓
-Hook
-   ↓
-Calculation utility (pure functions)
-```
-
-This separation keeps UI clean, calculations testable, and data access centralized.
-
----
-
-## Currency Handling
-
-- All values stored as integers representing **minor units** (paise/cents).
-- Formatting happens only at the UI layer via `Intl.NumberFormat`.
-- Supported currencies: INR, USD, EUR, GBP, SGD, AED.
-- Indian formatting uses ₹ L / ₹ Cr compact notation.
-
----
-
-## Free-Tier Considerations
-
-- **Cloudflare Pages Free** — unlimited static sites.
-- **Firebase Spark (no-cost)** — 50K reads, 20K writes per day.
-- **GitHub Free** — private repos.
-- **Total infrastructure cost: ₹0/month**.
-
-App design following these constraints:
-
-- Fetch on page load, local state, explicit refresh.
-- No unnecessary realtime listeners.
-- Batched operations avoided where not needed (personal dataset sizes are small).
-- Client-side calculations for small personal data.
-
----
-
-## License
-
-MIT
+**Track today. Plan tomorrow. Build your future.**

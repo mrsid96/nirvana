@@ -45,11 +45,14 @@ export function WealthSkeleton() {
         </div>
         <Skeleton className="h-11 w-24 rounded-[14px]" />
       </div>
-      <Skeleton className="h-28 w-full rounded-[24px]" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-28 w-full rounded-[24px] lg:h-[200px]" />
+        <Skeleton className="hidden h-28 w-full rounded-[24px] lg:block lg:h-[200px]" />
+      </div>
       <Skeleton className="h-11 w-full rounded-[14px]" />
-      <div className="space-y-3">
-        <Skeleton className="h-40 w-full rounded-[20px]" />
-        <Skeleton className="h-40 w-full rounded-[20px]" />
+      <div className="grid grid-cols-2 gap-2.5">
+        <Skeleton className="aspect-square w-full rounded-[18px]" />
+        <Skeleton className="aspect-square w-full rounded-[18px]" />
       </div>
     </div>
   )

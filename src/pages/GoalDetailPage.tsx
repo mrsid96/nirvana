@@ -16,6 +16,7 @@ import {
   SectionTitle,
   Select,
 } from '@/components/ui'
+import { GoalFormFields } from '@/components/GoalFormFields'
 import { FormPanel } from '@/components/FormPanel'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
@@ -38,6 +39,7 @@ import {
   type InvestmentType,
 } from '@/types/asset'
 import type { SupportedCurrency } from '@/types/user'
+import type { GoalPriority } from '@/types/goal'
 import type { AssetTransaction } from '@/types/transaction'
 import { ChartCard, DonutChart } from '@/components/charts'
 import { allocationByCategory } from '@/lib/calculations/analytics'
@@ -71,6 +73,11 @@ export function GoalDetailPage() {
   const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null)
   const [deletingTx, setDeletingTx] = useState<AssetTransaction | null>(null)
   const [confirm, setConfirm] = useState(false)
+  const [editGoalOpen, setEditGoalOpen] = useState(false)
+  const [goalName, setGoalName] = useState('')
+  const [goalTarget, setGoalTarget] = useState('')
+  const [goalTargetDate, setGoalTargetDate] = useState('')
+  const [goalPriority, setGoalPriority] = useState<GoalPriority>('medium')
   const [name, setName] = useState('')
   const [category, setCategory] = useState<AssetCategory>('MF')
   const [source, setSource] = useState<AssetSource>('ZERODHA')
@@ -209,6 +216,35 @@ export function GoalDetailPage() {
     }
   }
 
+  async function onEditGoal(event: FormEvent) {
+    event.preventDefault()
+    if (!goal) return
+    setBusy(true)
+    try {
+      await finance.editGoal(goal.id, {
+        name: goalName,
+        targetAmount: toMinorUnits(Number(goalTarget), currency),
+        targetDate: goalTargetDate,
+        priority: goalPriority,
+      })
+      toast.success('Goal updated')
+      setEditGoalOpen(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openEditGoal() {
+    if (!goal) return
+    setGoalName(goal.name)
+    setGoalTarget(String(toMajorUnits(goal.targetAmount, currency)))
+    setGoalTargetDate(goal.targetDate)
+    setGoalPriority(goal.priority)
+    setEditGoalOpen(true)
+  }
+
   const trackMessage =
     metrics.trackStatus === 'On Track'
       ? "You're on track ✨"
@@ -233,9 +269,14 @@ export function GoalDetailPage() {
             Your future, one step at a time.
           </p>
         </div>
-        <Button variant="ghost" onClick={() => setConfirm(true)}>
-          Delete
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="secondary" onClick={openEditGoal}>
+            Edit goal
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirm(true)}>
+            Delete
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-col items-center py-2">
@@ -410,6 +451,24 @@ export function GoalDetailPage() {
           emptyMessage="No investments or withdrawals yet."
         />
       </section>
+
+      <FormPanel open={editGoalOpen} onOpenChange={setEditGoalOpen} title="Edit goal">
+        <form className="space-y-4" onSubmit={onEditGoal}>
+          <GoalFormFields
+            name={goalName}
+            setName={setGoalName}
+            target={goalTarget}
+            setTarget={setGoalTarget}
+            targetDate={goalTargetDate}
+            setTargetDate={setGoalTargetDate}
+            priority={goalPriority}
+            setPriority={setGoalPriority}
+          />
+          <Button type="submit" className="w-full" size="lg" disabled={busy}>
+            {busy ? 'Saving…' : 'Save changes'}
+          </Button>
+        </form>
+      </FormPanel>
 
       <FormPanel open={assetOpen} onOpenChange={setAssetOpen} title="Add asset" wide>
         <AssetForm
