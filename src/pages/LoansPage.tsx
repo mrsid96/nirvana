@@ -12,8 +12,8 @@ import {
   HeroCard,
   Input,
   Progress,
-  Sheet,
 } from '@/components/ui'
+import { FormPanel } from '@/components/FormPanel'
 import { LoanCard } from '@/components/LoanCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
@@ -96,7 +96,7 @@ export function LoansPage() {
             Let&apos;s keep the debt journey visible.
           </p>
         </div>
-        <Button variant="soft" onClick={() => setOpen(true)} className="shrink-0">
+        <Button onClick={() => setOpen(true)} className="shrink-0">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add loan</span>
         </Button>
@@ -157,7 +157,7 @@ export function LoansPage() {
         </div>
       )}
 
-      <Sheet open={open} onOpenChange={setOpen} title="Add loan">
+      <FormPanel open={open} onOpenChange={setOpen} title="Add loan">
         <LoanForm
           onSave={onCreate}
           busy={busy}
@@ -182,7 +182,7 @@ export function LoansPage() {
             setStartDate,
           }}
         />
-      </Sheet>
+      </FormPanel>
     </div>
   )
 }
@@ -401,7 +401,7 @@ export function LoanDetailPage() {
         }}
       />
 
-      <Sheet open={editOpen} onOpenChange={setEditOpen} title="Edit loan">
+      <FormPanel open={editOpen} onOpenChange={setEditOpen} title="Edit loan">
         <form className="space-y-4" onSubmit={onEdit}>
           <LoanFormFields
             state={{
@@ -429,39 +429,40 @@ export function LoanDetailPage() {
             {busy ? 'Saving…' : 'Save changes'}
           </Button>
         </form>
-      </Sheet>
+      </FormPanel>
 
-      <Sheet open={payOpen} onOpenChange={setPayOpen} title="Record loan payment">
+      <FormPanel open={payOpen} onOpenChange={setPayOpen} title="Record loan payment" wide>
         <form className="space-y-4" onSubmit={onPay}>
-          <Field label="Amount">
-            <Input
-              inputMode="decimal"
-              value={payAmount}
-              onChange={(event) => setPayAmount(event.target.value)}
-              required
-              autoFocus
-            />
-          </Field>
-          <Field label="Date">
-            <Input
-              type="date"
-              value={payDate}
-              onChange={(event) => setPayDate(event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Note">
-            <Input
-              value={payNote}
-              onChange={(event) => setPayNote(event.target.value)}
-              placeholder="Optional"
-            />
-          </Field>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Field label="Amount">
+              <Input
+                inputMode="decimal"
+                value={payAmount}
+                onChange={(event) => setPayAmount(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Date">
+              <Input
+                type="date"
+                value={payDate}
+                onChange={(event) => setPayDate(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Note" className="lg:col-span-2">
+              <Input
+                value={payNote}
+                onChange={(event) => setPayNote(event.target.value)}
+                placeholder="Optional"
+              />
+            </Field>
+          </div>
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? 'Saving…' : 'Record payment'}
           </Button>
         </form>
-      </Sheet>
+      </FormPanel>
     </div>
   )
 }

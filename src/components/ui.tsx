@@ -1,6 +1,4 @@
-import { forwardRef, useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
-import { ChevronLeft } from 'lucide-react'
-import { Drawer } from 'vaul'
+import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
 export function Button({
@@ -96,9 +94,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   },
 )
 
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({ label, children, hint, className }: { label: string; children: ReactNode; hint?: string; className?: string }) {
   return (
-    <label className="block space-y-1.5">
+    <label className={cn('block space-y-1.5', className)}>
       <span className="text-sm font-medium text-ink-muted">{label}</span>
       {children}
       {hint ? <span className="block text-xs text-ink-faint">{hint}</span> : null}
@@ -127,10 +125,12 @@ export function HeroCard({
   className,
   children,
   gradient = 'violet',
+  fill = false,
 }: {
   className?: string
   children: ReactNode
   gradient?: 'violet' | 'mint' | 'peach'
+  fill?: boolean
 }) {
   const gradients = {
     violet: 'from-[#6657E8] via-[#5B4DD8] to-[#4F46C8]',
@@ -147,7 +147,7 @@ export function HeroCard({
     >
       <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
       <div className="pointer-events-none absolute -bottom-6 -left-6 h-28 w-28 rounded-full bg-white/5" />
-      <div className="relative">{children}</div>
+      <div className={cn('relative', fill && 'h-full min-h-0')}>{children}</div>
     </section>
   )
 }
@@ -238,117 +238,6 @@ export function EmptyState({
       <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-ink-muted">{body}</p>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
-  )
-}
-
-export function FullPageOverlay({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean
-  onClose: () => void
-  title: string
-  children: ReactNode
-}) {
-  useEffect(() => {
-    if (!open) return
-
-    const scrollY = window.scrollY
-    const { style: bodyStyle } = document.body
-    const { style: htmlStyle } = document.documentElement
-    const previous = {
-      bodyOverflow: bodyStyle.overflow,
-      bodyPosition: bodyStyle.position,
-      bodyTop: bodyStyle.top,
-      bodyLeft: bodyStyle.left,
-      bodyRight: bodyStyle.right,
-      bodyWidth: bodyStyle.width,
-      htmlOverflow: htmlStyle.overflow,
-    }
-
-    bodyStyle.overflow = 'hidden'
-    bodyStyle.position = 'fixed'
-    bodyStyle.top = `-${scrollY}px`
-    bodyStyle.left = '0'
-    bodyStyle.right = '0'
-    bodyStyle.width = '100%'
-    htmlStyle.overflow = 'hidden'
-
-    const preventTouchMove = (event: TouchEvent) => {
-      const target = event.target
-      if (!(target instanceof Node)) return
-      const scrollable = (target as Element).closest('[data-overlay-scroll]')
-      if (!scrollable) {
-        event.preventDefault()
-      }
-    }
-
-    document.addEventListener('touchmove', preventTouchMove, { passive: false })
-
-    return () => {
-      document.removeEventListener('touchmove', preventTouchMove)
-      bodyStyle.overflow = previous.bodyOverflow
-      bodyStyle.position = previous.bodyPosition
-      bodyStyle.top = previous.bodyTop
-      bodyStyle.left = previous.bodyLeft
-      bodyStyle.right = previous.bodyRight
-      bodyStyle.width = previous.bodyWidth
-      htmlStyle.overflow = previous.htmlOverflow
-      window.scrollTo(0, scrollY)
-    }
-  }, [open])
-
-  if (!open) return null
-
-  return (
-    <div className="fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden overscroll-none bg-canvas touch-none dark:bg-canvas-dark">
-      <header className="shrink-0 bg-canvas px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] dark:bg-canvas-dark">
-        <button
-          type="button"
-          onClick={onClose}
-          className="-ml-2 flex min-h-11 min-w-11 items-center justify-center rounded-full text-accent hover:bg-ink/5 active:bg-ink/5"
-          aria-label="Go back"
-        >
-          <ChevronLeft className="h-6 w-6" strokeWidth={2} />
-        </button>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink dark:text-white">{title}</h1>
-      </header>
-      <div
-        data-overlay-scroll
-        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-      >
-        <div className="mx-auto w-full max-w-lg">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-export function Sheet({
-  open,
-  onOpenChange,
-  title,
-  children,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  children: ReactNode
-}) {
-  return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[2px]" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92vh] max-w-lg rounded-t-[28px] bg-canvas p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] dark:bg-canvas-dark">
-          <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-ink/15 dark:bg-white/20" />
-          <Drawer.Title className="mb-5 text-xl font-semibold text-ink dark:text-white">
-            {title}
-          </Drawer.Title>
-          <div className="overflow-y-auto">{children}</div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
   )
 }
 

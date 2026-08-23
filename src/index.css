@@ -139,6 +139,25 @@ select {
   box-sizing: border-box;
 }
 
+.recharts-wrapper,
+.recharts-surface,
+.recharts-sector,
+.recharts-layer,
+.recharts-pie-sector {
+  outline: none !important;
+}
+
+.recharts-sector:focus,
+.recharts-active-shape,
+.recharts-wrapper *:focus {
+  outline: none !important;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse {
     animation: none;

@@ -16,8 +16,8 @@ import {
   Pill,
   SectionTitle,
   Select,
-  Sheet,
 } from '@/components/ui'
+import { FormPanel } from '@/components/FormPanel'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateGoalMetrics, assetGainLoss } from '@/lib/calculations/goals'
@@ -220,7 +220,7 @@ export function WealthPage() {
           <p className="mt-1 text-sm text-ink-muted">Building something meaningful.</p>
         </div>
         {tab === 'goals' ? (
-          <Button variant="soft" onClick={() => setOpen(true)} className="shrink-0">
+          <Button onClick={() => setOpen(true)} className="shrink-0">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add goal</span>
           </Button>
@@ -286,7 +286,7 @@ export function WealthPage() {
         </section>
       ) : null}
 
-      <Sheet open={open} onOpenChange={setOpen} title="New goal">
+      <FormPanel open={open} onOpenChange={setOpen} title="New goal">
         <form className="space-y-4" onSubmit={onCreate}>
           <GoalFormFields
             name={name}
@@ -302,9 +302,9 @@ export function WealthPage() {
             {busy ? 'Saving…' : 'Create goal'}
           </Button>
         </form>
-      </Sheet>
+      </FormPanel>
 
-      <Sheet open={editOpen} onOpenChange={setEditOpen} title="Edit goal">
+      <FormPanel open={editOpen} onOpenChange={setEditOpen} title="Edit goal">
         <form className="space-y-4" onSubmit={onEdit}>
           <GoalFormFields
             name={name}
@@ -320,7 +320,7 @@ export function WealthPage() {
             {busy ? 'Saving…' : 'Save changes'}
           </Button>
         </form>
-      </Sheet>
+      </FormPanel>
     </div>
   )
 }

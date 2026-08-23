@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
-import { AmountInput, Button, Field, FullPageOverlay, Input, Pill, Select } from '@/components/ui'
+import { FormPanel } from '@/components/FormPanel'
+import { AmountInput, Button, Field, Input, Pill, Select } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { todayIsoDate } from '@/lib/formatters/dates'
@@ -129,11 +130,7 @@ export function QuickSheets({
   }
 
   return (
-    <FullPageOverlay
-      open={open !== null}
-      onClose={() => onOpenChange(null)}
-      title={title}
-    >
+    <FormPanel open={open !== null} onOpenChange={(next) => onOpenChange(next ? open : null)} title={title}>
       <form className="space-y-5" onSubmit={onSubmit}>
         <div className="rounded-[16px] bg-surface px-4 py-5 dark:bg-surface-dark">
           <p className="text-center text-sm font-medium text-ink-muted">How much?</p>
@@ -231,6 +228,6 @@ export function QuickSheets({
           {busy ? 'Saving…' : title}
         </Button>
       </form>
-    </FullPageOverlay>
+    </FormPanel>
   )
 }

@@ -13,7 +13,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-        includeAssets: ['favicon.png', 'nirvana-loader.png', 'nirvana-sidebar.png', 'icons/icon-192.png', 'icons/icon-512.png'],
+        includeAssets: ['favicon.png', 'nirvana-loader.png', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'Nirvana',
         short_name: 'Nirvana',

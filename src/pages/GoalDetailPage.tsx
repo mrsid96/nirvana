@@ -15,8 +15,8 @@ import {
   Input,
   SectionTitle,
   Select,
-  Sheet,
 } from '@/components/ui'
+import { FormPanel } from '@/components/FormPanel'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import {
@@ -370,7 +370,7 @@ export function GoalDetailPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <SectionTitle title="Assets" />
-          <Button variant="soft" onClick={() => setAssetOpen(true)}>
+          <Button onClick={() => setAssetOpen(true)}>
             Add asset
           </Button>
         </div>
@@ -411,7 +411,7 @@ export function GoalDetailPage() {
         />
       </section>
 
-      <Sheet open={assetOpen} onOpenChange={setAssetOpen} title="Add asset">
+      <FormPanel open={assetOpen} onOpenChange={setAssetOpen} title="Add asset" wide>
         <AssetForm
           name={name}
           setName={setName}
@@ -431,9 +431,9 @@ export function GoalDetailPage() {
           submitLabel="Save asset"
           onSubmit={onAddAsset}
         />
-      </Sheet>
+      </FormPanel>
 
-      <Sheet open={editAssetOpen} onOpenChange={setEditAssetOpen} title="Edit asset">
+      <FormPanel open={editAssetOpen} onOpenChange={setEditAssetOpen} title="Edit asset" wide>
         <AssetForm
           name={name}
           setName={setName}
@@ -452,7 +452,7 @@ export function GoalDetailPage() {
           onSubmit={onEditAsset}
           hideValue
         />
-      </Sheet>
+      </FormPanel>
 
       <ConfirmBar
         open={deletingAsset !== null}
@@ -535,41 +535,43 @@ function AssetForm({
 }) {
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
-      <Field label="Name">
-        <Input value={name} onChange={(e) => setName(e.target.value)} required />
-      </Field>
-      <Field label="Category">
-        <Select value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)}>
-          {Object.entries(ASSET_CATEGORY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Source">
-        <Select value={source} onChange={(e) => setSource(e.target.value as AssetSource)}>
-          {Object.entries(ASSET_SOURCE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Type">
-        <Select value={investmentType} onChange={(e) => setInvestmentType(e.target.value as InvestmentType)}>
-          <option value="SIP">SIP</option>
-          <option value="LUMP_SUM">One-time</option>
-          <option value="BOTH">Both</option>
-        </Select>
-      </Field>
-      {!hideValue && currentValue !== undefined && setCurrentValue ? (
-        <Field label="Current value">
-          <Input inputMode="decimal" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Field label="Name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
         </Field>
-      ) : null}
-      <Field label="Monthly SIP">
-        <Input inputMode="decimal" value={monthly} onChange={(e) => setMonthly(e.target.value)} />
-      </Field>
-      <Field label="Expected CAGR %">
-        <Input inputMode="decimal" value={cagr} onChange={(e) => setCagr(e.target.value)} />
-      </Field>
+        <Field label="Category">
+          <Select value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)}>
+            {Object.entries(ASSET_CATEGORY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Source">
+          <Select value={source} onChange={(e) => setSource(e.target.value as AssetSource)}>
+            {Object.entries(ASSET_SOURCE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Type">
+          <Select value={investmentType} onChange={(e) => setInvestmentType(e.target.value as InvestmentType)}>
+            <option value="SIP">SIP</option>
+            <option value="LUMP_SUM">One-time</option>
+            <option value="BOTH">Both</option>
+          </Select>
+        </Field>
+        {!hideValue && currentValue !== undefined && setCurrentValue ? (
+          <Field label="Current value">
+            <Input inputMode="decimal" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} />
+          </Field>
+        ) : null}
+        <Field label="Monthly SIP">
+          <Input inputMode="decimal" value={monthly} onChange={(e) => setMonthly(e.target.value)} />
+        </Field>
+        <Field label="Expected CAGR %">
+          <Input inputMode="decimal" value={cagr} onChange={(e) => setCagr(e.target.value)} />
+        </Field>
+      </div>
       <Button type="submit" className="w-full" size="lg" disabled={busy}>
         {busy ? 'Saving…' : submitLabel}
       </Button>

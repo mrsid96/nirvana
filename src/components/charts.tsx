@@ -28,12 +28,16 @@ export function DonutChart({
   centerValue,
   className,
   formatValue,
+  size = 'default',
+  compact = false,
 }: {
   data: ChartDatum[]
   centerLabel?: string
   centerValue?: string
   className?: string
   formatValue?: (value: number) => string
+  size?: 'default' | 'large'
+  compact?: boolean
 }) {
   const { chartData, total } = useMemo(() => {
     const filtered = data.filter((item) => item.value > 0)
@@ -59,27 +63,37 @@ export function DonutChart({
     )
   }
 
+  const chartSize = compact ? 'h-36 w-36' : size === 'large' ? 'h-48 w-48' : 'h-44 w-44'
+  const innerRadius = compact ? 48 : size === 'large' ? 62 : 58
+  const outerRadius = compact ? 66 : size === 'large' ? 86 : 82
+
   return (
     <div
-      className={cn('flex flex-col items-center gap-4 sm:flex-row sm:gap-6', className)}
+      className={cn(
+        'flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4',
+        compact && 'h-full',
+        className,
+      )}
     >
-      <div className="relative h-44 w-44 shrink-0">
+      <div className={cn('relative shrink-0 outline-none [&_*]:outline-none', chartSize)}>
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart style={{ outline: 'none' }}>
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="name"
-              innerRadius={58}
-              outerRadius={82}
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
               paddingAngle={2}
               strokeWidth={0}
+              isAnimationActive={false}
             >
               {chartData.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
             <RechartsTooltip
+              trigger="hover"
               formatter={(value) =>
                 formatValue
                   ? formatValue(Number(value ?? 0))
@@ -95,14 +109,16 @@ export function DonutChart({
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <div>
-            {centerValue ? <p className="text-lg font-semibold">{centerValue}</p> : null}
+            {centerValue ? (
+              <p className={cn('font-semibold', compact ? 'text-base' : 'text-lg')}>{centerValue}</p>
+            ) : null}
             {centerLabel ? (
               <p className="text-xs text-stone-400 dark:text-stone-500">{centerLabel}</p>
             ) : null}
           </div>
         </div>
       </div>
-      <ul className="w-full space-y-1.5 text-sm">
+      <ul className={cn('w-full space-y-1', compact ? 'text-xs' : 'space-y-1.5 text-sm')}>
         {chartData.map((item) => (
           <li key={item.name} className="flex items-center justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
@@ -212,22 +228,33 @@ export function ChartCard({
   subtitle,
   children,
   action,
+  className,
 }: {
-  title: string
+  title?: string
   subtitle?: string
   children: ReactNode
   action?: ReactNode
+  className?: string
 }) {
+  const hasHeader = title || subtitle || action
+
   return (
-    <section className="rounded-[20px] border border-ink/5 bg-surface p-4 shadow-[var(--shadow-soft)] dark:border-white/5 dark:bg-surface-dark">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-ink dark:text-white">{title}</h3>
-          {subtitle ? <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p> : null}
+    <section
+      className={cn(
+        'rounded-[20px] border border-ink/5 bg-surface p-4 shadow-[var(--shadow-soft)] dark:border-white/5 dark:bg-surface-dark',
+        className,
+      )}
+    >
+      {hasHeader ? (
+        <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
+          <div>
+            {title ? <h3 className="font-semibold text-ink dark:text-white">{title}</h3> : null}
+            {subtitle ? <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p> : null}
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
-      {children}
+      ) : null}
+      <div>{children}</div>
     </section>
   )
 }

@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils'
 
+const LOGO_URL = '/nirvana-loader.png'
+
 const loaderSizes = {
   sm: 'h-24 w-24',
   md: 'h-32 w-32',
@@ -7,16 +9,9 @@ const loaderSizes = {
   hero: 'h-[200px] w-[200px]',
 } as const
 
-const sidebarSizes = {
-  sm: 'h-8 w-[120px]',
-  md: 'h-9 w-[140px]',
-  lg: 'h-10 w-[160px]',
-} as const
-
 type LoaderSize = keyof typeof loaderSizes
-type SidebarSize = keyof typeof sidebarSizes
 
-/** Square loader / login mark — CSS background only */
+/** Nirvana mark — CSS background only */
 export function NirvanaLoaderLogo({
   className,
   size = 'hero',
@@ -29,59 +24,25 @@ export function NirvanaLoaderLogo({
       role="img"
       aria-label="Nirvana"
       className={cn(
-        'bg-[url("/nirvana-loader.png")] bg-contain bg-center bg-no-repeat',
+        'bg-contain bg-center bg-no-repeat',
         loaderSizes[size],
         className,
       )}
+      style={{ backgroundImage: `url("${LOGO_URL}")` }}
     />
   )
 }
 
-/** Horizontal sidebar wordmark — CSS background only */
-export function NirvanaSidebarLogo({
-  className,
-  size = 'md',
-}: {
-  className?: string
-  size?: SidebarSize
-}) {
-  return (
-    <div
-      role="img"
-      aria-label="Nirvana"
-      className={cn(
-        'bg-[url("/nirvana-sidebar.png")] bg-contain bg-left bg-no-repeat',
-        sidebarSizes[size],
-        className,
-      )}
-    />
-  )
-}
-
-/** @deprecated Use NirvanaLoaderLogo or NirvanaSidebarLogo */
+/** @deprecated Use NirvanaLoaderLogo */
 export function NirvanaLogo({
   className,
-  size = 'md',
-  variant = 'loader',
+  size = 'hero',
 }: {
   className?: string
-  size?: LoaderSize | SidebarSize
+  size?: LoaderSize
   variant?: 'loader' | 'sidebar'
 }) {
-  if (variant === 'sidebar') {
-    return (
-      <NirvanaSidebarLogo
-        className={className}
-        size={(size as SidebarSize) in sidebarSizes ? (size as SidebarSize) : 'md'}
-      />
-    )
-  }
-  return (
-    <NirvanaLoaderLogo
-      className={className}
-      size={(size as LoaderSize) in loaderSizes ? (size as LoaderSize) : 'hero'}
-    />
-  )
+  return <NirvanaLoaderLogo className={className} size={size} />
 }
 
 export function NirvanaAppIcon({
@@ -102,11 +63,8 @@ export function NirvanaAppIcon({
     <div
       role="img"
       aria-label="Nirvana"
-      className={cn(
-        'bg-[url("/icons/icon-192.png")] bg-contain bg-center bg-no-repeat',
-        sizes[size],
-        className,
-      )}
+      className={cn('bg-contain bg-center bg-no-repeat', sizes[size], className)}
+      style={{ backgroundImage: `url("${LOGO_URL}")` }}
     />
   )
 }

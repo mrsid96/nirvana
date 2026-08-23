@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Trash2, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, ConfirmBar, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
-import { GoalCard } from '@/components/GoalCard'
+import { Card, ConfirmBar, HeroCard, SectionTitle } from '@/components/ui'
 import { HealthCard } from '@/components/HealthCard'
-import { LoanCard } from '@/components/LoanCard'
 import { MilestoneBanner, useMilestones } from '@/components/MilestoneBanner'
 import { MoneyFlow, SummaryGrid } from '@/components/MoneyFlow'
 import { DashboardSkeleton } from '@/components/Skeleton'
@@ -14,13 +11,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
 import { calculateFinancialHealth } from '@/lib/calculations/financialHealth'
-import { calculateGoalMetrics, weightedGoalProgress } from '@/lib/calculations/goals'
-import {
-  calculateLoanMetrics,
-  loanBurdenRatio,
-  totalMonthlyEmi,
-  totalOutstanding,
-} from '@/lib/calculations/loans'
+import { weightedGoalProgress } from '@/lib/calculations/goals'
+import { loanBurdenRatio, totalMonthlyEmi, totalOutstanding } from '@/lib/calculations/loans'
 import {
   currentMonthKey,
   formatDisplayDate,
@@ -84,16 +76,6 @@ export function DashboardPage() {
     }))
   }, [finance.assets])
 
-  const counts = useMemo(() => {
-    if (finance.loading) {
-      return { goals: 0, loans: 0 }
-    }
-    return {
-      goals: finance.goals.length,
-      loans: finance.loans.length,
-    }
-  }, [finance])
-
   const assetsTotal = finance.assets.reduce((sum, asset) => sum + asset.currentValue, 0)
   const loansTotal = totalOutstanding(finance.loans)
   const net = assetsTotal - loansTotal
@@ -142,35 +124,55 @@ export function DashboardPage() {
         </h1>
       </header>
 
-      {/* Hero */}
-      <HeroCard gradient="violet">
-        <p className="text-sm font-medium text-white/80">Your net worth</p>
-        <p className="font-display mt-1 text-[40px] font-semibold leading-none tracking-tight">
-          {formatMoney(net, currency, { compact: true })}
-        </p>
-        {cashflow.freeCashFlow > 0 ? (
-          <p className="mt-3 flex items-center gap-1.5 text-sm text-white/85">
-            <TrendingUp className="h-4 w-4" />
-            {formatMoney(cashflow.freeCashFlow, currency, { compact: true })} free this month
+      {/* Wealth overview — net worth left, allocation right on desktop */}
+      <section
+        className={
+          allocation.length > 0
+            ? 'grid gap-4 lg:grid-cols-2 lg:items-stretch'
+            : 'space-y-4'
+        }
+      >
+        <HeroCard gradient="violet" className="flex flex-col justify-between lg:h-[200px] lg:py-4">
+          <p className="text-sm font-medium text-white/80">Your net worth</p>
+          <p className="font-display mt-0.5 text-[32px] font-semibold leading-none tracking-tight lg:text-[36px]">
+            {formatMoney(net, currency, { compact: true })}
           </p>
-        ) : (
-          <p className="mt-3 text-sm text-white/75">✦ Keep going — progress compounds</p>
-        )}
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <div className="rounded-[14px] bg-white/12 px-3 py-2.5 backdrop-blur-sm">
-            <p className="text-xs text-white/70">Assets</p>
-            <p className="font-display mt-0.5 text-lg font-semibold">
-              {formatMoney(assetsTotal, currency, { compact: true })}
+          {cashflow.freeCashFlow > 0 ? (
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-white/85">
+              <TrendingUp className="h-4 w-4" />
+              {formatMoney(cashflow.freeCashFlow, currency, { compact: true })} free this month
             </p>
+          ) : (
+            <p className="mt-1.5 text-sm text-white/75">✦ Keep going — progress compounds</p>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-[14px] bg-white/12 px-3 py-1.5 backdrop-blur-sm">
+              <p className="text-xs text-white/70">Assets</p>
+              <p className="font-display mt-0.5 text-sm font-semibold lg:text-base">
+                {formatMoney(assetsTotal, currency, { compact: true })}
+              </p>
+            </div>
+            <div className="rounded-[14px] bg-white/12 px-3 py-1.5 backdrop-blur-sm">
+              <p className="text-xs text-white/70">Loans</p>
+              <p className="font-display mt-0.5 text-sm font-semibold lg:text-base">
+                {formatMoney(loansTotal, currency, { compact: true })}
+              </p>
+            </div>
           </div>
-          <div className="rounded-[14px] bg-white/12 px-3 py-2.5 backdrop-blur-sm">
-            <p className="text-xs text-white/70">Loans</p>
-            <p className="font-display mt-0.5 text-lg font-semibold">
-              {formatMoney(loansTotal, currency, { compact: true })}
-            </p>
-          </div>
-        </div>
-      </HeroCard>
+        </HeroCard>
+
+        {allocation.length > 0 ? (
+          <ChartCard className="flex flex-col justify-center rounded-[24px] py-3 lg:h-[200px]">
+            <DonutChart
+              compact
+              data={allocation}
+              centerLabel="Total wealth"
+              centerValue={formatMoney(assetsTotal, currency, { compact: true })}
+              formatValue={(value) => formatMoney(value, currency, { compact: true })}
+            />
+          </ChartCard>
+        ) : null}
+      </section>
 
       {/* This month */}
       <section className="space-y-3">
@@ -285,104 +287,6 @@ export function DashboardPage() {
           </div>
         </section>
       )}
-
-      {/* Goals */}
-      <section className="space-y-3">
-        <SectionTitle
-          title={
-            <>
-              Your goals <span className="text-base">✨</span>
-            </>
-          }
-          subtitle="Small steps become big milestones."
-          action={
-            <Link to="/wealth" className="text-sm font-semibold text-accent">
-              See all
-            </Link>
-          }
-        />
-        {counts.goals === 0 ? (
-          <EmptyState
-            emoji="✨"
-            title="Your wealth journey starts here"
-            body="Create your first goal and start turning plans into progress."
-            action={
-              <Link to="/wealth">
-                <span className="text-sm font-semibold text-accent">Create a goal</span>
-              </Link>
-            }
-          />
-        ) : (
-          <div className="space-y-3">
-            {finance.goals.slice(0, 3).map((goal, index) => {
-              const metrics = calculateGoalMetrics(goal, finance.assets, asOf)
-              return (
-                <GoalCard
-                  key={goal.id}
-                  goalId={goal.id}
-                  name={goal.name}
-                  current={metrics.currentValue}
-                  target={metrics.targetAmount}
-                  progress={metrics.displayProgressPercent}
-                  monthly={metrics.monthlyPlannedInvestment}
-                  trackStatus={metrics.trackStatus}
-                  currency={currency}
-                  index={index}
-                />
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Allocation */}
-      {allocation.length > 0 ? (
-        <ChartCard title="Where your wealth lives" subtitle="Tap segments to explore">
-          <DonutChart
-            data={allocation}
-            centerLabel="Total wealth"
-            centerValue={formatMoney(assetsTotal, currency, { compact: true })}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
-          />
-        </ChartCard>
-      ) : null}
-
-      {/* Loans */}
-      <section className="space-y-3">
-        <SectionTitle
-          title="Your loans"
-          subtitle="Let's keep the debt journey visible."
-          action={
-            <Link to="/loans" className="text-sm font-semibold text-accent">
-              See all
-            </Link>
-          }
-        />
-        {counts.loans === 0 ? (
-          <EmptyState
-            title="No loans tracked"
-            body="Nothing here yet. Add a loan when you're ready."
-          />
-        ) : (
-          <div className="space-y-3">
-            {finance.loans.slice(0, 2).map((loan) => {
-              const metrics = calculateLoanMetrics(loan, asOf)
-              return (
-                <LoanCard
-                  key={loan.id}
-                  loanId={loan.id}
-                  name={loan.name}
-                  outstanding={metrics.outstandingAmount}
-                  progress={metrics.progressPercent}
-                  emi={metrics.emiAmount}
-                  rate={loan.interestRate}
-                  currency={currency}
-                />
-              )
-            })}
-          </div>
-        )}
-      </section>
 
       <HealthCard
         health={{
