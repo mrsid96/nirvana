@@ -1,21 +1,28 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
+import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
+import { GoalCard } from '@/components/GoalCard'
+import { SegmentedControl } from '@/components/SegmentedControl'
+import { WealthSkeleton } from '@/components/Skeleton'
 import {
   Button,
   Card,
   EmptyState,
   Field,
+  HeroCard,
   Input,
-  Progress,
+  Pill,
+  SectionTitle,
   Select,
   Sheet,
 } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
-import { calculateGoalMetrics } from '@/lib/calculations/goals'
+import { calculateGoalMetrics, assetGainLoss } from '@/lib/calculations/goals'
 import { todayIsoDate } from '@/lib/formatters/dates'
-import { formatMoney, formatPercent } from '@/lib/formatters/currency'
+import { formatMoney } from '@/lib/formatters/currency'
 import { toMinorUnits } from '@/lib/money'
 import type { GoalPriority } from '@/types/goal'
 import { AllocationList, ChartCard, DonutChart } from '@/components/charts'
@@ -23,16 +30,22 @@ import {
   allocationByCategory,
   allocationByGoal,
   allocationBySource,
-  withdrawalsByGoalMap,
-  withdrawalsByMonth,
 } from '@/lib/calculations/analytics'
-import { ASSET_CATEGORY_LABELS, ASSET_SOURCE_LABELS } from '@/types/asset'
+import {
+  ASSET_CATEGORY_LABELS,
+  ASSET_SOURCE_LABELS,
+  type Asset,
+} from '@/types/asset'
+import type { SupportedCurrency } from '@/types/user'
+
+type WealthTab = 'goals' | 'assets' | 'activity'
 
 export function WealthPage() {
   const { profile } = useAuth()
   const finance = useFinance()
   const currency = profile?.currency ?? 'INR'
   const asOf = todayIsoDate()
+  const [tab, setTab] = useState<WealthTab>('goals')
   const [open, setOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<{
@@ -59,9 +72,15 @@ export function WealthPage() {
   )
 
   const filterAssets = useMemo(() => {
-    if (filterCategory === 'all') return finance.assets
-    return finance.assets.filter((asset) => asset.category === filterCategory)
+    const active = finance.assets.filter((a) => !a.isDeleted)
+    if (filterCategory === 'all') return active
+    return active.filter((asset) => asset.category === filterCategory)
   }, [finance.assets, filterCategory])
+
+  const totalWealth = filterAssets.reduce((s, a) => s + a.currentValue, 0)
+  const totalTarget = finance.goals
+    .filter((g) => !g.isDeleted)
+    .reduce((s, g) => s + g.targetAmount, 0)
 
   const byGoal = useMemo(
     () => allocationByGoal(finance.goals, filterAssets),
@@ -77,7 +96,7 @@ export function WealthPage() {
   )
   const byCategory = useMemo(
     () =>
-      allocationByCategory(filterAssets).map((item: { name: string; value: number }) => ({
+      allocationByCategory(filterAssets).map((item) => ({
         name:
           ASSET_CATEGORY_LABELS[item.name as keyof typeof ASSET_CATEGORY_LABELS] ??
           item.name,
@@ -87,27 +106,42 @@ export function WealthPage() {
   )
   const bySource = useMemo(
     () =>
-      allocationBySource(filterAssets).map((item: { name: string; value: number }) => ({
+      allocationBySource(filterAssets).map((item) => ({
         name:
           ASSET_SOURCE_LABELS[item.name as keyof typeof ASSET_SOURCE_LABELS] ?? item.name,
         value: item.value,
       })),
     [filterAssets],
   )
-  const withdrawalByMonth = useMemo(
-    () =>
-      withdrawalsByMonth(finance.transactions).map(
-        (item: { month: string; value: number }) => ({
-          name: item.month,
-          value: item.value,
-        }),
-      ),
-    [finance.transactions],
-  )
-  const withdrawalByGoal = useMemo(
-    () => withdrawalsByGoalMap(finance.goals, finance.transactions),
-    [finance.goals, finance.transactions],
-  )
+
+  const activityItems = useMemo((): TimelineItem[] => {
+    return finance.transactions
+      .filter((t) => !t.isDeleted)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 30)
+      .map((item) => {
+        const asset = finance.assets.find((a) => a.id === item.assetId)
+        const goal = finance.goals.find((g) => g.id === item.goalId)
+        return {
+          id: item.id,
+          date: item.date,
+          title:
+            item.type === 'INVESTMENT'
+              ? 'Invested'
+              : item.type === 'WITHDRAWAL'
+                ? 'Withdrawn'
+                : 'Value updated',
+          subtitle: [asset?.name, goal?.name].filter(Boolean).join(' · '),
+          amount: item.amount,
+          type:
+            item.type === 'INVESTMENT'
+              ? 'investment'
+              : item.type === 'WITHDRAWAL'
+                ? 'withdrawal'
+                : 'update',
+        }
+      })
+  }, [finance.transactions, finance.assets, finance.goals])
 
   function openEdit(
     goalId: string,
@@ -119,12 +153,12 @@ export function WealthPage() {
     setEditingGoal({
       id: goalId,
       name: goalName,
-      target: String(goalTarget / (currency === 'INR' ? 100 : 100)),
+      target: String(goalTarget / 100),
       targetDate: goalTargetDate,
       priority: goalPriority,
     })
     setName(goalName)
-    setTarget(String(goalTarget / (currency === 'INR' ? 100 : 100)))
+    setTarget(String(goalTarget / 100))
     setTargetDate(goalTargetDate)
     setPriority(goalPriority)
     setEditOpen(true)
@@ -142,7 +176,7 @@ export function WealthPage() {
         priority,
         status: 'active',
       })
-      toast.success('Goal created')
+      toast.success('Goal created. Let\'s build something. ✨')
       setOpen(false)
       setName('')
       setTarget('')
@@ -174,137 +208,83 @@ export function WealthPage() {
     }
   }
 
+  if (finance.loading) return <WealthSkeleton />
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-6">
+      <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Wealth</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Goals, assets and progress toward the life you want.
+          <h1 className="text-[28px] font-semibold tracking-tight text-ink dark:text-white lg:text-3xl">
+            Your <span className="font-serif font-medium text-accent">wealth</span>
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">Building something meaningful.</p>
+        </div>
+        {tab === 'goals' ? (
+          <Button variant="soft" onClick={() => setOpen(true)} className="shrink-0">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add goal</span>
+          </Button>
+        ) : null}
+      </header>
+
+      <HeroCard gradient="mint">
+        <p className="text-sm font-medium text-white/80">Current wealth</p>
+        <p className="font-display mt-1 text-[36px] font-semibold leading-none">
+          {formatMoney(totalWealth, currency, { compact: true })}
+        </p>
+        {totalTarget > 0 ? (
+          <p className="mt-2 text-sm text-white/75">
+            Target wealth {formatMoney(totalTarget, currency, { compact: true })}
           </p>
-        </div>
-        <Button onClick={() => setOpen(true)}>Add goal</Button>
-      </div>
+        ) : null}
+      </HeroCard>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <button
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${filterCategory === 'all' ? 'bg-teal-700 text-white' : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'}`}
-          onClick={() => setFilterCategory('all')}
-        >
-          All
-        </button>
-        {Object.entries(ASSET_CATEGORY_LABELS).map(([value, label]) => (
-          <button
-            key={value}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${filterCategory === value ? 'bg-teal-700 text-white' : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'}`}
-            onClick={() => setFilterCategory(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'goals', label: 'Goals' },
+          { value: 'assets', label: 'Assets' },
+          { value: 'activity', label: 'Activity' },
+        ]}
+      />
 
-      {cards.length === 0 ? (
-        <EmptyState
-          title="Build your first wealth goal"
-          body="Create a goal like Retirement, Emergency Fund or Child Education."
-          action={<Button onClick={() => setOpen(true)}>Create goal</Button>}
+      {tab === 'goals' ? (
+        <GoalsTab
+          cards={cards}
+          currency={currency}
+          byGoalTarget={byGoalTarget}
+          onCreate={() => setOpen(true)}
+          onEdit={openEdit}
         />
-      ) : (
-        <div className="space-y-3">
-          {cards.map(({ goal, metrics }) => (
-            <Card key={goal.id}>
-              <Link to={`/wealth/${goal.id}`} className="block">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="font-semibold">{goal.name}</h2>
-                    <p className="mt-1 text-sm text-stone-500">
-                      {formatMoney(metrics.currentValue, currency, { compact: true })} /{' '}
-                      {formatMoney(metrics.targetAmount, currency, { compact: true })}
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-stone-500">
-                    {metrics.trackStatus}
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <Progress value={metrics.displayProgressPercent} />
-                  <p className="mt-2 text-xs text-stone-500">
-                    {formatPercent(metrics.displayProgressPercent)} · Monthly plan{' '}
-                    {formatMoney(metrics.monthlyPlannedInvestment, currency, {
-                      compact: true,
-                    })}
-                  </p>
-                </div>
-              </Link>
-              <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
-                <Button
-                  variant="ghost"
-                  className="min-h-9 px-2 text-xs"
-                  onClick={() =>
-                    openEdit(
-                      goal.id,
-                      goal.name,
-                      goal.targetAmount,
-                      goal.targetDate,
-                      goal.priority,
-                    )
-                  }
-                >
-                  Edit
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      ) : null}
 
-      <ChartCard title="Goal allocation" subtitle="Share of your target wealth by goal">
-        <DonutChart
-          data={byGoalTarget}
-          formatValue={(value) => formatMoney(value, currency, { compact: true })}
+      {tab === 'assets' ? (
+        <AssetsTab
+          assets={filterAssets}
+          goals={finance.goals}
+          currency={currency}
+          filterCategory={filterCategory}
+          setFilterCategory={setFilterCategory}
+          byCategory={byCategory}
+          bySource={bySource}
+          byGoal={byGoal}
+          totalWealth={totalWealth}
         />
-      </ChartCard>
+      ) : null}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <ChartCard title="Current allocation" subtitle="Where wealth is working now">
-          <DonutChart
-            data={byGoal}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
-          />
-        </ChartCard>
-        <ChartCard title="By category" subtitle="Asset mix across all goals">
-          <DonutChart
-            data={byCategory}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
-          />
-        </ChartCard>
-      </div>
-
-      <ChartCard title="By source" subtitle="Where the money is held">
-        <AllocationList
-          data={bySource}
-          formatValue={(value) => formatMoney(value, currency, { compact: true })}
-          empty="Add assets to see source allocation"
-        />
-      </ChartCard>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <ChartCard title="Withdrawals" subtitle="Cumulative by month">
-          <AllocationList
-            data={withdrawalByMonth}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
-            empty="No withdrawals yet"
-          />
-        </ChartCard>
-        <ChartCard title="By goal" subtitle="Cumulative withdrawals per goal">
-          <AllocationList
-            data={withdrawalByGoal}
-            formatValue={(value) => formatMoney(value, currency, { compact: true })}
-            empty="No withdrawals yet"
-          />
-        </ChartCard>
-      </div>
+      {tab === 'activity' ? (
+        <section className="space-y-3">
+          <SectionTitle title="Recent activity" subtitle="Investments and withdrawals across goals" />
+          <Card variant="flat">
+            <ActivityTimeline
+              items={activityItems}
+              currency={currency}
+              emptyMessage="Nothing here yet. Add an investment to see activity."
+            />
+          </Card>
+        </section>
+      ) : null}
 
       <Sheet open={open} onOpenChange={setOpen} title="New goal">
         <form className="space-y-4" onSubmit={onCreate}>
@@ -318,8 +298,8 @@ export function WealthPage() {
             priority={priority}
             setPriority={setPriority}
           />
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? 'Saving…' : 'Save goal'}
+          <Button type="submit" className="w-full" size="lg" disabled={busy}>
+            {busy ? 'Saving…' : 'Create goal'}
           </Button>
         </form>
       </Sheet>
@@ -336,11 +316,189 @@ export function WealthPage() {
             priority={priority}
             setPriority={setPriority}
           />
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button type="submit" className="w-full" size="lg" disabled={busy}>
             {busy ? 'Saving…' : 'Save changes'}
           </Button>
         </form>
       </Sheet>
+    </div>
+  )
+}
+
+function GoalsTab({
+  cards,
+  currency,
+  byGoalTarget,
+  onCreate,
+  onEdit,
+}: {
+  cards: { goal: { id: string; name: string; targetAmount: number; targetDate: string; priority: GoalPriority }; metrics: ReturnType<typeof calculateGoalMetrics> }[]
+  currency: SupportedCurrency
+  byGoalTarget: { name: string; value: number }[]
+  onCreate: () => void
+  onEdit: (id: string, name: string, target: number, date: string, priority: GoalPriority) => void
+}) {
+  if (cards.length === 0) {
+    return (
+      <EmptyState
+        emoji="✨"
+        title="Your wealth journey starts here"
+        body="Create your first goal and start turning plans into progress."
+        action={<Button onClick={onCreate}>Create a goal</Button>}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <SectionTitle title="Your goals ✨" subtitle="Small steps become big milestones." />
+        {cards.map(({ goal, metrics }, index) => (
+          <div key={goal.id} className="space-y-2">
+            <GoalCard
+              goalId={goal.id}
+              name={goal.name}
+              current={metrics.currentValue}
+              target={metrics.targetAmount}
+              progress={metrics.displayProgressPercent}
+              monthly={metrics.monthlyPlannedInvestment}
+              trackStatus={metrics.trackStatus}
+              currency={currency}
+              index={index}
+            />
+            <Button
+              variant="ghost"
+              className="min-h-9 px-2 text-xs"
+              onClick={() =>
+                onEdit(goal.id, goal.name, goal.targetAmount, goal.targetDate, goal.priority)
+              }
+            >
+              Edit goal
+            </Button>
+          </div>
+        ))}
+      </div>
+      {byGoalTarget.length > 0 ? (
+        <ChartCard title="Goal allocation" subtitle="Share of your target wealth by goal">
+          <DonutChart
+            data={byGoalTarget}
+            formatValue={(value) => formatMoney(value, currency, { compact: true })}
+          />
+        </ChartCard>
+      ) : null}
+    </div>
+  )
+}
+
+function AssetsTab({
+  assets,
+  goals,
+  currency,
+  filterCategory,
+  setFilterCategory,
+  byCategory,
+  bySource,
+  byGoal,
+  totalWealth,
+}: {
+  assets: Asset[]
+  goals: { id: string; name: string }[]
+  currency: SupportedCurrency
+  filterCategory: string
+  setFilterCategory: (v: string) => void
+  byCategory: { name: string; value: number }[]
+  bySource: { name: string; value: number }[]
+  byGoal: { name: string; value: number }[]
+  totalWealth: number
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
+        <Pill active={filterCategory === 'all'} onClick={() => setFilterCategory('all')}>
+          All
+        </Pill>
+        {Object.entries(ASSET_CATEGORY_LABELS).map(([value, label]) => (
+          <Pill
+            key={value}
+            active={filterCategory === value}
+            onClick={() => setFilterCategory(value)}
+          >
+            {label}
+          </Pill>
+        ))}
+      </div>
+
+      {assets.length === 0 ? (
+        <EmptyState
+          title="No assets yet"
+          body="Add assets to a goal to see them here."
+        />
+      ) : (
+        <div className="space-y-3">
+          {assets.map((asset) => {
+            const goal = goals.find((g) => g.id === asset.goalId)
+            const gain = assetGainLoss(asset)
+            return (
+              <Link key={asset.id} to={`/wealth/${asset.goalId}`}>
+                <Card className="active:scale-[0.99] transition-transform">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-ink dark:text-white">{asset.name}</h3>
+                      <p className="mt-0.5 text-sm text-ink-muted">
+                        {ASSET_CATEGORY_LABELS[asset.category]} · {ASSET_SOURCE_LABELS[asset.source]}
+                      </p>
+                      {goal ? (
+                        <p className="mt-1 text-xs text-accent">{goal.name}</p>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-display text-lg font-semibold text-ink dark:text-white">
+                        {formatMoney(asset.currentValue, currency, { compact: true })}
+                      </p>
+                      <p className={`text-xs font-medium ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {gain >= 0 ? '↑' : '↓'}{' '}
+                        {formatMoney(Math.abs(gain), currency, { compact: true })}
+                      </p>
+                    </div>
+                  </div>
+                  {asset.monthlyInvestment ? (
+                    <p className="mt-2 text-xs text-ink-muted">
+                      SIP {formatMoney(asset.monthlyInvestment, currency, { compact: true })} / month
+                    </p>
+                  ) : null}
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {byCategory.length > 0 ? (
+        <ChartCard title="By category" subtitle="Tap segments to explore">
+          <DonutChart
+            data={byCategory}
+            centerLabel="Total wealth"
+            centerValue={formatMoney(totalWealth, currency, { compact: true })}
+            formatValue={(value) => formatMoney(value, currency, { compact: true })}
+          />
+        </ChartCard>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ChartCard title="By goal" subtitle="Where wealth is working">
+          <DonutChart
+            data={byGoal}
+            formatValue={(value) => formatMoney(value, currency, { compact: true })}
+          />
+        </ChartCard>
+        <ChartCard title="By source" subtitle="Where money is held">
+          <AllocationList
+            data={bySource}
+            formatValue={(value) => formatMoney(value, currency, { compact: true })}
+            empty="Add assets to see source allocation"
+          />
+        </ChartCard>
+      </div>
     </div>
   )
 }

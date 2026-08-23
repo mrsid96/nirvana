@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth'
 import { subscribeToAuth, signInWithGoogle, signOut } from '@/firebase/auth'
 import { isFirebaseConfigured } from '@/firebase/config'
 import { completeOnboarding, ensureUserProfile, getSettings, updateSettings } from '@/services/userService'
+import { applyThemeToDocument, getStoredTheme, persistTheme } from '@/lib/theme'
 import { logDevError, toUserMessage } from '@/lib/errors'
 import type { SupportedCurrency, ThemeMode, UserProfile, UserSettings } from '@/types/user'
 
@@ -43,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const nextSettings = await getSettings(next.uid)
         setProfile(nextProfile)
         setSettings(nextSettings)
+        if (nextSettings?.theme) {
+          persistTheme(nextSettings.theme)
+          applyThemeToDocument(nextSettings.theme)
+        }
       } catch (error) {
         logDevError(error)
       } finally {
@@ -78,6 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!user) return
         await updateSettings(user.uid, data)
         setSettings((current) => (current ? { ...current, ...data } : current))
+        if (data.theme) {
+          persistTheme(data.theme)
+          applyThemeToDocument(data.theme)
+        }
         if (data.currency || data.country) {
           setProfile((current) =>
             current
@@ -104,5 +113,5 @@ export function useAuth(): AuthContextValue {
 }
 
 export function useThemeMode(): ThemeMode {
-  return useAuth().settings?.theme ?? 'system'
+  return useAuth().settings?.theme ?? getStoredTheme() ?? 'light'
 }

@@ -1,22 +1,25 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import {
   Button,
   Card,
   ConfirmBar,
   EmptyState,
   Field,
+  HeroCard,
   Input,
   Progress,
   Sheet,
 } from '@/components/ui'
+import { LoanCard } from '@/components/LoanCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import {
   calculateLoanMetrics,
   totalMonthlyEmi,
-  totalOriginal,
   totalOutstanding,
   totalPaid,
 } from '@/lib/calculations/loans'
@@ -83,45 +86,37 @@ export function LoansPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-6">
+      <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Loans</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            What you still owe, and what leaves every month.
+          <h1 className="text-[28px] font-semibold tracking-tight text-ink dark:text-white lg:text-3xl">
+            Your loans
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Let&apos;s keep the debt journey visible.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>Add loan</Button>
-      </div>
+        <Button variant="soft" onClick={() => setOpen(true)} className="shrink-0">
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Add loan</span>
+        </Button>
+      </header>
 
-      <Card>
-        <dl className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-stone-500">Left to pay</dt>
-            <dd className="text-xl font-semibold">
-              {formatMoney(totalOutstanding(finance.loans), currency, { compact: true })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-stone-500">Paid so far</dt>
-            <dd className="text-xl font-semibold">
-              {formatMoney(totalPaid(finance.loans), currency, { compact: true })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-stone-500">Original</dt>
-            <dd className="font-semibold">
-              {formatMoney(totalOriginal(finance.loans), currency, { compact: true })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-stone-500">Monthly EMI</dt>
-            <dd className="font-semibold">
-              {formatMoney(totalMonthlyEmi(finance.loans), currency, { compact: true })}
-            </dd>
-          </div>
-        </dl>
-      </Card>
+      <HeroCard gradient="violet">
+        <p className="text-sm font-medium text-white/80">Total remaining</p>
+        <p className="font-display mt-1 text-[36px] font-semibold leading-none">
+          {formatMoney(totalOutstanding(finance.loans), currency, { compact: true })}
+        </p>
+        <p className="mt-3 text-sm text-white/75">
+          {formatMoney(totalPaid(finance.loans), currency, { compact: true })} paid so far
+        </p>
+        <div className="mt-4 rounded-[14px] bg-white/12 px-3 py-2.5 backdrop-blur-sm">
+          <p className="text-xs text-white/70">Monthly EMI</p>
+          <p className="font-display mt-0.5 text-lg font-semibold">
+            {formatMoney(totalMonthlyEmi(finance.loans), currency, { compact: true })}
+          </p>
+        </div>
+      </HeroCard>
 
       {outstandingByLoan.length > 0 ? (
         <ChartCard
@@ -138,31 +133,28 @@ export function LoansPage() {
       {finance.loans.length === 0 ? (
         <EmptyState
           title="No loans tracked"
-          body="Add your first loan to understand your monthly debt burden."
+          body="Nothing here yet. Add a loan when you're ready."
           action={<Button onClick={() => setOpen(true)}>Add loan</Button>}
         />
       ) : (
-        finance.loans.map((loan) => {
-          const metrics = calculateLoanMetrics(loan, asOf)
-          return (
-            <Link key={loan.id} to={`/loans/${loan.id}`}>
-              <Card>
-                <h2 className="font-semibold">{loan.name}</h2>
-                <p className="mt-1 text-sm text-stone-500">
-                  {formatMoney(metrics.outstandingAmount, currency, { compact: true })}{' '}
-                  outstanding
-                </p>
-                <div className="mt-3">
-                  <Progress value={metrics.progressPercent} />
-                  <p className="mt-2 text-xs text-stone-500">
-                    EMI {formatMoney(metrics.emiAmount, currency, { compact: true })} ·{' '}
-                    {formatPercent(metrics.progressPercent)} paid
-                  </p>
-                </div>
-              </Card>
-            </Link>
-          )
-        })
+        <div className="space-y-3">
+          {finance.loans.map((loan) => {
+            const metrics = calculateLoanMetrics(loan, asOf)
+            return (
+              <LoanCard
+                key={loan.id}
+                loanId={loan.id}
+                name={loan.name}
+                outstanding={metrics.outstandingAmount}
+                progress={metrics.progressPercent}
+                emi={metrics.emiAmount}
+                rate={loan.interestRate}
+                currency={currency}
+                variant="calm"
+              />
+            )
+          })}
+        </div>
       )}
 
       <Sheet open={open} onOpenChange={setOpen} title="Add loan">
@@ -203,6 +195,8 @@ export function LoanDetailPage() {
   const currency = profile?.currency ?? 'INR'
   const loan = finance.loans.find((item) => item.id === loanId)
   const metrics = loan ? calculateLoanMetrics(loan, todayIsoDate()) : null
+  useSetPageTitle(loan?.name ?? null)
+  useSetPageTitle(loan?.name ?? null)
   const payments = useMemo(
     () =>
       finance.loanPayments
@@ -306,16 +300,16 @@ export function LoanDetailPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <Link to="/loans" className="text-sm font-medium text-teal-700">
+    <div className="space-y-4 lg:space-y-5">
+      <Link to="/loans" className="hidden text-sm font-medium text-accent lg:inline">
         Back to loans
       </Link>
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{loan.name}</h1>
-          <p className="mt-1 text-stone-500">{loan.bank}</p>
+          <h1 className="hidden text-3xl font-semibold tracking-tight lg:block">{loan.name}</h1>
+          <p className="text-sm text-stone-500 lg:mt-1">{loan.bank}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button variant="secondary" onClick={openEdit}>
             Edit
           </Button>
@@ -325,17 +319,20 @@ export function LoanDetailPage() {
         </div>
       </header>
       <Card>
-        <p className="text-sm text-stone-500">Left to pay</p>
-        <p className="mt-1 text-3xl font-semibold">
+        <p className="text-sm text-ink-muted">Remaining</p>
+        <p className="font-display mt-1 text-3xl font-semibold text-ink dark:text-white">
           {formatMoney(metrics.outstandingAmount, currency, { compact: true })}
         </p>
-        <div className="mt-3">
-          <Progress value={metrics.progressPercent} />
+        <p className="mt-1 text-sm text-success">
+          {formatMoney(metrics.paidAmount, currency, { compact: true })} paid — you&apos;re reducing the debt
+        </p>
+        <div className="mt-4">
+          <Progress value={metrics.progressPercent} color="#6657E8" />
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <dt className="text-stone-500">Original</dt>
-            <dd className="font-semibold">
+            <dt className="text-ink-muted">Original</dt>
+            <dd className="font-semibold text-ink dark:text-white">
               {formatMoney(metrics.originalAmount, currency, { compact: true })}
             </dd>
           </div>

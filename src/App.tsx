@@ -1,9 +1,12 @@
-import { Component, lazy, Suspense, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { FinanceProvider } from '@/contexts/FinanceContext'
+import { applyThemeToDocument, getStoredTheme, persistTheme } from '@/lib/theme'
+import type { ThemeMode } from '@/types/user'
 
 const DashboardPage = lazy(() =>
   import('@/pages/DashboardPage').then((mod) => ({ default: mod.DashboardPage })),
@@ -31,7 +34,7 @@ const WealthPage = lazy(() =>
 )
 
 function PageFallback() {
-  return <div className="grid min-h-dvh place-items-center text-stone-500">Loading…</div>
+  return <LoadingScreen />
 }
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -48,7 +51,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
           <div>
             <h1 className="text-2xl font-semibold">Something went wrong.</h1>
             <button
-              className="mt-4 text-teal-700"
+              className="mt-4 text-accent"
               onClick={() => window.location.reload()}
             >
               Reload the application
@@ -63,12 +66,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 function ThemeSync({ children }: { children: ReactNode }) {
   const { settings } = useAuth()
-  const theme = settings?.theme ?? 'system'
-  const dark =
-    theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', dark)
-  document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+  const theme: ThemeMode = settings?.theme ?? getStoredTheme() ?? 'light'
+
+  useEffect(() => {
+    applyThemeToDocument(theme)
+    if (settings?.theme) persistTheme(settings.theme)
+  }, [theme, settings?.theme])
+
+  useEffect(() => {
+    if (theme !== 'system') return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyThemeToDocument('system')
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [theme])
+
   return children
 }
 
@@ -80,13 +92,7 @@ function Guard({
   onboarding?: boolean
 }) {
   const { user, profile, loading, configured } = useAuth()
-  if (loading) {
-    return (
-      <div className="grid min-h-dvh place-items-center text-stone-500">
-        Loading your workspace…
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
   if (!configured || !user) return <Navigate to="/login" replace />
   if (!profile?.onboardingComplete && !onboarding)
     return <Navigate to="/onboarding" replace />
@@ -96,11 +102,7 @@ function Guard({
 
 function Guest({ children }: { children: ReactNode }) {
   const { user, profile, loading } = useAuth()
-  if (loading) {
-    return (
-      <div className="grid min-h-dvh place-items-center text-stone-500">Loading…</div>
-    )
-  }
+  if (loading) return <LoadingScreen />
   if (user && profile && !profile.onboardingComplete)
     return <Navigate to="/onboarding" replace />
   if (user && profile?.onboardingComplete) return <Navigate to="/" replace />

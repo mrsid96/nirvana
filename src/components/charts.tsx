@@ -12,20 +12,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { chartColors } from '@/lib/design-tokens'
 import { cn } from '@/lib/utils'
 
-const CHART_COLORS = [
-  '#0f766e',
-  '#0d9488',
-  '#14b8a6',
-  '#f59e0b',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#22c55e',
-  '#ef4444',
-  '#64748b',
-]
+const CHART_COLORS = [...chartColors]
 
 export interface ChartDatum {
   name: string
@@ -205,7 +195,7 @@ export function CashFlowBars({
                     ? 'bg-emerald-600'
                     : item.value < 0
                       ? 'bg-red-600'
-                      : 'bg-teal-600',
+                      : 'bg-accent',
                 )}
                 style={{ width: `${Math.min(100, width)}%` }}
               />
@@ -229,11 +219,11 @@ export function ChartCard({
   action?: ReactNode
 }) {
   return (
-    <section className="rounded-3xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <section className="rounded-[20px] border border-ink/5 bg-surface p-4 shadow-[var(--shadow-soft)] dark:border-white/5 dark:bg-surface-dark">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold">{title}</h3>
-          {subtitle ? <p className="mt-0.5 text-xs text-stone-500">{subtitle}</p> : null}
+          <h3 className="font-semibold text-ink dark:text-white">{title}</h3>
+          {subtitle ? <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p> : null}
         </div>
         {action}
       </div>

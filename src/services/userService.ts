@@ -57,7 +57,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     currency: 'INR',
     country: 'IN',
     dashboardMonth: currentMonthKey(),
-    theme: 'system',
+    theme: 'light',
     ...stamp(),
   })
   return {
@@ -80,7 +80,7 @@ export async function getSettings(uid: string): Promise<UserSettings | null> {
     currency: (raw.currency as SupportedCurrency) ?? 'INR',
     country: String(raw.country ?? 'IN'),
     dashboardMonth: String(raw.dashboardMonth ?? currentMonthKey()),
-    theme: (raw.theme as ThemeMode) ?? 'system',
+    theme: (raw.theme as ThemeMode) ?? 'light',
     createdAt: toIso(raw.createdAt),
     updatedAt: toIso(raw.updatedAt),
   }

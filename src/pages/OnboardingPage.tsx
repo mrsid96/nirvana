@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
+import { NirvanaLoaderLogo } from '@/components/NirvanaLogo'
 import { Button, Field, Select } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { COUNTRIES } from '@/lib/money'
@@ -24,9 +25,12 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Let’s set up your dashboard</h1>
-      <p className="mt-2 text-stone-500">Choose how money should look. You can change this later.</p>
+    <div className="flex min-h-dvh flex-col justify-end px-6 pb-12 pt-safe lg:mx-auto lg:max-w-md lg:justify-center lg:px-6 lg:pb-0 lg:pt-0">
+      <div className="mb-auto pt-12 lg:mb-0 lg:pt-0">
+        <NirvanaLoaderLogo size="md" className="mb-4 lg:hidden" />
+        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl lg:font-semibold">Let’s set up your dashboard</h1>
+        <p className="mt-2 text-stone-500">Choose how money should look. You can change this later.</p>
+      </div>
       <form className="mt-8 space-y-4" onSubmit={onSubmit}>
         <Field label="Country">
           <Select

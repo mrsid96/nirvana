@@ -1,20 +1,33 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
-import { Button, Field, Input, Select, Sheet } from '@/components/ui'
+import { AmountInput, Button, Field, FullPageOverlay, Input, Pill, Select } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { toMinorUnits } from '@/lib/money'
+import {
+  getQuickSheetSuccessMessage,
+  getQuickSheetTitle,
+  type QuickSheet,
+} from '@/lib/quick-actions'
 import { EXPENSE_CATEGORIES, PAYMENT_SOURCES } from '@/types/expense'
 import { INCOME_SOURCES } from '@/types/income'
 
-export type QuickSheet =
-  | 'expense'
-  | 'income'
-  | 'investment'
-  | 'withdrawal'
-  | 'loan-payment'
-  | null
+export type { QuickSheet } from '@/lib/quick-actions'
+
+const QUICK_EXPENSE_CATEGORIES = ['Food', 'Groceries', 'Transport', 'Home', 'Shopping', 'Travel'] as const
+
+const categoryEmoji: Record<string, string> = {
+  Food: '🍔',
+  Groceries: '🛒',
+  Transport: '🚗',
+  Home: '🏠',
+  Shopping: '🛍',
+  Travel: '✈️',
+  Entertainment: '🎬',
+  Health: '💊',
+  Education: '📚',
+}
 
 export function QuickSheets({
   open,
@@ -36,17 +49,20 @@ export function QuickSheets({
   const [loanId, setLoanId] = useState(finance.loans[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
 
-  const title = useMemo(() => {
-    if (open === 'expense') return 'Add expense'
-    if (open === 'income') return 'Add income'
-    if (open === 'investment') return 'Record investment'
-    if (open === 'withdrawal') return 'Record withdrawal'
-    if (open === 'loan-payment') return 'Record loan payment'
-    return ''
+  useEffect(() => {
+    if (open) {
+      setAmount('')
+      setNote('')
+      setDate(todayIsoDate())
+    }
   }, [open])
+
+  const title = open ? getQuickSheetTitle(open) : ''
+  const successMessage = open ? getQuickSheetSuccessMessage(open) : 'Saved.'
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
+    if (!open) return
     const minor = toMinorUnits(Number(amount), currency)
     if (!Number.isFinite(minor) || minor <= 0) {
       toast.error('Enter a valid amount')
@@ -62,7 +78,6 @@ export function QuickSheets({
           paymentSource,
           description: note || undefined,
         })
-        toast.success('Expense added')
       } else if (open === 'income') {
         await finance.addIncome({
           amount: minor,
@@ -70,7 +85,6 @@ export function QuickSheets({
           date,
           description: note || undefined,
         })
-        toast.success('Income added')
       } else if (open === 'investment' || open === 'withdrawal') {
         const asset = finance.assets.find((item) => item.id === assetId)
         if (!asset) {
@@ -88,7 +102,6 @@ export function QuickSheets({
           },
           asset,
         )
-        toast.success(open === 'investment' ? 'Investment recorded' : 'Withdrawal recorded')
       } else if (open === 'loan-payment') {
         if (!loanId) {
           toast.error('Choose a loan first')
@@ -103,8 +116,8 @@ export function QuickSheets({
           },
           true,
         )
-        toast.success('Loan payment recorded')
       }
+      toast.success(successMessage)
       onOpenChange(null)
       setAmount('')
       setNote('')
@@ -116,29 +129,41 @@ export function QuickSheets({
   }
 
   return (
-    <Sheet open={open !== null} onOpenChange={(next) => onOpenChange(next ? open : null)} title={title}>
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <Field label="Amount">
-          <Input
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0"
-            autoFocus
-            required
-          />
-        </Field>
+    <FullPageOverlay
+      open={open !== null}
+      onClose={() => onOpenChange(null)}
+      title={title}
+    >
+      <form className="space-y-5" onSubmit={onSubmit}>
+        <div className="rounded-[16px] bg-surface px-4 py-5 dark:bg-surface-dark">
+          <p className="text-center text-sm font-medium text-ink-muted">How much?</p>
+          <div className="mt-2 flex items-center justify-center gap-1">
+            <span className="font-display text-2xl text-ink-muted">
+              {currency === 'INR' ? '₹' : currency === 'USD' ? '$' : ''}
+            </span>
+            <AmountInput
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0"
+              required
+            />
+          </div>
+        </div>
+
         {open === 'expense' ? (
           <>
-            <Field label="Category">
-              <Select value={category} onChange={(event) => setCategory(event.target.value as typeof category)}>
-                {EXPENSE_CATEGORIES.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <div className="scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {QUICK_EXPENSE_CATEGORIES.map((item) => (
+                <Pill
+                  key={item}
+                  active={category === item}
+                  onClick={() => setCategory(item)}
+                  className="!px-3"
+                >
+                  {categoryEmoji[item] ?? ''} {item}
+                </Pill>
+              ))}
+            </div>
             <Field label="Paid with">
               <Select
                 value={paymentSource}
@@ -153,6 +178,7 @@ export function QuickSheets({
             </Field>
           </>
         ) : null}
+
         {open === 'income' ? (
           <Field label="Source">
             <Select value={incomeSource} onChange={(event) => setIncomeSource(event.target.value)}>
@@ -164,6 +190,7 @@ export function QuickSheets({
             </Select>
           </Field>
         ) : null}
+
         {open === 'investment' || open === 'withdrawal' ? (
           <Field label="Asset">
             <Select value={assetId} onChange={(event) => setAssetId(event.target.value)}>
@@ -175,6 +202,7 @@ export function QuickSheets({
             </Select>
           </Field>
         ) : null}
+
         {open === 'loan-payment' ? (
           <Field label="Loan">
             <Select value={loanId} onChange={(event) => setLoanId(event.target.value)}>
@@ -186,16 +214,23 @@ export function QuickSheets({
             </Select>
           </Field>
         ) : null}
+
+        <Field label="What was it?" hint="Optional">
+          <Input
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder={open === 'expense' ? 'Groceries, dinner…' : 'Optional note'}
+          />
+        </Field>
+
         <Field label="Date">
           <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
         </Field>
-        <Field label="Note">
-          <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional" />
-        </Field>
-        <Button type="submit" className="w-full" disabled={busy}>
-          {busy ? 'Saving…' : 'Save'}
+
+        <Button type="submit" className="w-full" size="lg" disabled={busy}>
+          {busy ? 'Saving…' : title}
         </Button>
       </form>
-    </Sheet>
+    </FullPageOverlay>
   )
 }
