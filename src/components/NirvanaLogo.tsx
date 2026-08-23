@@ -1,34 +1,30 @@
 import { cn } from '@/lib/utils'
 
-const LOGO_URL = '/nirvana-loader.png'
+const LOGO_URL = '/nirvana-logo.png'
 
-const loaderSizes = {
-  sm: 'h-24 w-24',
-  md: 'h-32 w-32',
-  lg: 'h-40 w-40',
-  hero: 'h-[200px] w-[200px]',
+const logoSizes = {
+  sm: 'h-14 w-auto',
+  md: 'h-20 w-auto',
+  lg: 'h-28 w-auto',
+  hero: 'h-36 w-auto',
+  display: 'h-[200px] min-h-[200px] w-auto',
 } as const
 
-type LoaderSize = keyof typeof loaderSizes
+type LogoSize = keyof typeof logoSizes
 
-/** Nirvana mark — CSS background only */
+/** Nirvana brand mark */
 export function NirvanaLoaderLogo({
   className,
   size = 'hero',
 }: {
   className?: string
-  size?: LoaderSize
+  size?: LogoSize
 }) {
   return (
-    <div
-      role="img"
-      aria-label="Nirvana"
-      className={cn(
-        'bg-contain bg-center bg-no-repeat',
-        loaderSizes[size],
-        className,
-      )}
-      style={{ backgroundImage: `url("${LOGO_URL}")` }}
+    <img
+      src={LOGO_URL}
+      alt="Nirvana"
+      className={cn('max-w-full object-contain', logoSizes[size], className)}
     />
   )
 }
@@ -39,7 +35,7 @@ export function NirvanaLogo({
   size = 'hero',
 }: {
   className?: string
-  size?: LoaderSize
+  size?: LogoSize
   variant?: 'loader' | 'sidebar'
 }) {
   return <NirvanaLoaderLogo className={className} size={size} />
@@ -53,18 +49,17 @@ export function NirvanaAppIcon({
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }) {
   const sizes = {
-    xs: 'h-7 w-7',
-    sm: 'h-9 w-9',
-    md: 'h-12 w-12',
-    lg: 'h-16 w-16',
-    xl: 'h-20 w-20',
+    xs: 'h-7 w-auto',
+    sm: 'h-9 w-auto',
+    md: 'h-12 w-auto',
+    lg: 'h-16 w-auto',
+    xl: 'h-20 w-auto',
   }
   return (
-    <div
-      role="img"
-      aria-label="Nirvana"
-      className={cn('bg-contain bg-center bg-no-repeat', sizes[size], className)}
-      style={{ backgroundImage: `url("${LOGO_URL}")` }}
+    <img
+      src={LOGO_URL}
+      alt="Nirvana"
+      className={cn('max-w-full object-contain', sizes[size], className)}
     />
   )
 }

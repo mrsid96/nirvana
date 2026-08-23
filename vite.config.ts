@@ -25,9 +25,10 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: [
           'favicon.png',
-          'nirvana-loader.png',
+          'nirvana-logo.png',
           'og.png',
           'og.svg',
+          'icons/apple-touch-icon.png',
           'icons/icon-192.png',
           'icons/icon-512.png',
         ],

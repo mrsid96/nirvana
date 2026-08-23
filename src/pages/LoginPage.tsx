@@ -1,5 +1,12 @@
-import { useState, type FormEvent } from 'react'
-import { Landmark, Target, TrendingUp, Wallet } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  BarChart3,
+  LineChart,
+  PiggyBank,
+  Target,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { PwaInstallLink } from '@/components/PwaInstallLink'
 import { NirvanaLoaderLogo } from '@/components/NirvanaLogo'
@@ -8,32 +15,88 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isFirebaseConfigured } from '@/firebase/config'
 import { cn } from '@/lib/utils'
 
-const highlights = [
+const capabilities = [
+  {
+    icon: BarChart3,
+    title: 'Financial dashboard',
+    text: 'Wealth, investments, loans, net position, and free cash flow — one snapshot.',
+  },
   {
     icon: Target,
     title: 'Wealth goals',
-    text: 'Retirement, home, education — and whether you are ahead or behind.',
-    tone: 'bg-accent/10 text-accent',
+    text: 'Retirement, home, education — see if you are ahead, on track, or behind.',
   },
   {
     icon: TrendingUp,
-    title: 'Investments',
-    text: 'Funds, FDs, stocks, gold and more, with gain or loss in one place.',
-    tone: 'bg-mint/15 text-mint',
-  },
-  {
-    icon: Landmark,
-    title: 'Loans',
-    text: 'Outstanding, EMI and how much principal you have already paid.',
-    tone: 'bg-peach/15 text-peach',
+    title: 'Investments & assets',
+    text: 'Mutual funds, FDs, stocks, gold — allocation, gains, and monthly SIPs.',
   },
   {
     icon: Wallet,
     title: 'Monthly cash flow',
-    text: 'Income, spend, invest, EMIs — then what is left this month.',
-    tone: 'bg-sky/15 text-sky',
+    text: 'Income, spend, investments, EMIs — then what remains each month.',
   },
 ] as const
+
+const insights = [
+  { icon: PiggyBank, label: 'Savings rate' },
+  { icon: LineChart, label: 'Wealth growth' },
+  { icon: Target, label: 'Goal progress' },
+] as const
+
+const previewBars = [
+  { label: 'Income', value: '₹1.8L', color: 'bg-mint', delay: 'hero-bar-delay-1' },
+  { label: 'Spend', value: '₹64k', color: 'bg-peach', delay: 'hero-bar-delay-2' },
+  { label: 'Invest', value: '₹45k', color: 'bg-accent', delay: 'hero-bar-delay-3' },
+  { label: 'Left', value: '₹43k', color: 'bg-success', delay: 'hero-bar-delay-4' },
+] as const
+
+function useRevealOnScroll(threshold = 0.12) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [threshold])
+
+  return { ref, visible }
+}
+
+function RevealOnScroll({
+  children,
+  className,
+  delayMs = 0,
+}: {
+  children: ReactNode
+  className?: string
+  delayMs?: number
+}) {
+  const { ref, visible } = useRevealOnScroll()
+
+  return (
+    <div
+      ref={ref}
+      className={cn('hero-reveal-on-scroll', visible && 'is-visible', className)}
+      style={{ transitionDelay: `${delayMs}ms` }}
+    >
+      {children}
+    </div>
+  )
+}
 
 function GoogleMark() {
   return (
@@ -62,7 +125,7 @@ function GoogleMark() {
   )
 }
 
-function SignInForm({
+function SignInCta({
   busy,
   ready,
   onSignIn,
@@ -74,64 +137,89 @@ function SignInForm({
   className?: string
 }) {
   return (
-    <form onSubmit={onSignIn} className={className}>
-      <Button type="submit" className="w-full" size="lg" disabled={busy || !ready}>
-        <GoogleMark />
-        {busy ? 'Opening Google…' : 'Continue with Google'}
-      </Button>
+    <div className={cn('flex w-full max-w-sm flex-col items-center', className)}>
+      <form onSubmit={onSignIn} className="w-full">
+        <Button type="submit" className="w-full shadow-[var(--shadow-fab)]" size="lg" disabled={busy || !ready}>
+          <GoogleMark />
+          {busy ? 'Opening Google…' : 'Continue with Google'}
+        </Button>
+      </form>
       {!ready ? (
         <p className="mt-3 text-center text-sm text-warning">
           Add your Firebase environment variables to enable Google sign-in.
         </p>
-      ) : null}
-    </form>
+      ) : (
+        <p className="mt-3 text-center text-xs text-ink-faint">Free · No card required</p>
+      )}
+      <div className="mt-4">
+        <PwaInstallLink />
+      </div>
+    </div>
+  )
+}
+
+function HeroBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <div className="hero-glow-center absolute left-1/2 top-0 h-[520px] w-[min(100%,720px)] -translate-x-1/2 rounded-full bg-accent/10 blur-3xl" />
+      <div className="hero-glow-side absolute -left-24 top-1/3 h-64 w-64 rounded-full bg-mint/10 blur-3xl" />
+      <div className="hero-glow-side-delayed absolute -right-24 top-1/4 h-72 w-72 rounded-full bg-accent/8 blur-3xl" />
+    </div>
   )
 }
 
 function PreviewCard({ className }: { className?: string }) {
   return (
-    <div className={cn('relative overflow-hidden', className)} aria-hidden>
-      <div className="pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-accent/15 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-mint/20 blur-2xl" />
-      <div className="relative overflow-hidden rounded-[24px] border border-ink/5 bg-surface p-5 shadow-[var(--shadow-soft)] dark:border-white/10 dark:bg-surface-dark">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-          This month
-        </p>
-        <p className="font-display mt-3 text-3xl font-semibold tracking-tight text-ink dark:text-white">
-          Net ₹12.4L
-        </p>
-        <p className="mt-1 text-sm text-mint">Wealth up · loans down</p>
-
-        <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-          {[
-            { label: 'Income', value: '₹1.8L', bar: 'bg-mint w-[86%]' },
-            { label: 'Spend', value: '₹64k', bar: 'bg-peach w-[42%]' },
-            { label: 'Invest', value: '₹45k', bar: 'bg-accent w-[58%]' },
-          ].map((item) => (
-            <div key={item.label} className="rounded-[16px] bg-canvas px-2 py-3 dark:bg-white/5">
-              <div className="mx-auto mb-2 h-1.5 w-full overflow-hidden rounded-full bg-ink/8 dark:bg-white/10">
-                <div className={cn('h-full rounded-full', item.bar)} />
-              </div>
-              <p className="text-[11px] text-ink-muted">{item.label}</p>
-              <p className="mt-0.5 text-sm font-semibold text-ink dark:text-white">{item.value}</p>
-            </div>
-          ))}
+    <div
+      className={cn(
+        'relative mx-auto w-full max-w-md overflow-hidden rounded-[28px] border border-ink/5 bg-surface p-5 shadow-[var(--shadow-soft)] dark:border-white/8 dark:bg-surface-dark',
+        className,
+      )}
+      aria-hidden
+    >
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-faint">
+            Net position
+          </p>
+          <p className="font-display mt-1 text-4xl font-semibold tracking-tight text-ink dark:text-white">
+            ₹12.4L
+          </p>
+          <p className="mt-1 text-sm text-mint">Wealth up · loans down</p>
         </div>
-
-        <div className="mt-4 rounded-[16px] bg-accent/8 px-4 py-3 dark:bg-accent/15">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-ink dark:text-white">Home fund</p>
-              <p className="text-xs text-ink-muted">On track · 68%</p>
-            </div>
-            <span className="rounded-full bg-mint/20 px-2.5 py-1 text-[11px] font-semibold text-mint">
-              Ahead
-            </span>
-          </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/8 dark:bg-white/10">
-            <div className="h-full w-[68%] rounded-full bg-accent" />
-          </div>
+        <div className="hero-reveal hero-delay-6 rounded-[16px] bg-accent/8 px-3 py-2 text-right dark:bg-accent/15">
+          <p className="text-[10px] text-ink-muted">Home fund</p>
+          <p className="text-sm font-semibold text-ink dark:text-white">68% · Ahead</p>
         </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-4 gap-2 text-center">
+        {previewBars.map((item) => (
+          <div key={item.label} className="rounded-[14px] bg-canvas px-2 py-2.5 dark:bg-white/5">
+            <div className="mx-auto mb-2 h-1 w-8 overflow-hidden rounded-full bg-ink/8 dark:bg-white/10">
+              <div className={cn('h-full w-full rounded-full', item.color, 'hero-bar', item.delay)} />
+            </div>
+            <p className="text-[10px] text-ink-muted">{item.label}</p>
+            <p className="mt-0.5 text-xs font-semibold text-ink dark:text-white">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {insights.map((item, index) => (
+          <span
+            key={item.label}
+            className={cn(
+              'hero-reveal inline-flex items-center gap-1.5 rounded-full border border-ink/6 bg-canvas/80 px-2.5 py-1 text-[11px] font-medium text-ink-muted dark:border-white/8 dark:bg-white/5',
+              index === 0 && 'hero-delay-4',
+              index === 1 && 'hero-delay-5',
+              index === 2 && 'hero-delay-6',
+            )}
+          >
+            <item.icon className="h-3 w-3 text-accent" strokeWidth={2.2} />
+            {item.label}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -155,60 +243,71 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-dvh max-w-[100vw] overflow-x-hidden bg-transparent">
-      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col px-5 pb-36 pt-safe sm:px-8 lg:pb-16">
-        <header className="flex flex-col items-center pt-6 text-center lg:hidden">
-          <NirvanaLoaderLogo size="lg" />
-        </header>
+    <div className="relative min-h-dvh max-w-[100vw] overflow-x-hidden">
+      <HeroBackdrop />
 
-        <div className="mt-8 grid min-w-0 items-center gap-10 lg:mt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
-          <div className="min-w-0">
-            <h1 className="text-center font-serif text-[2.15rem] font-medium leading-[1.15] tracking-tight text-ink sm:text-5xl lg:text-left dark:text-white">
-              Your money is <span className="italic">growing</span>.
-            </h1>
-            <p className="mx-auto mt-4 max-w-md text-center text-base leading-relaxed text-ink-muted sm:text-lg lg:mx-0 lg:text-left">
-              One place for goals, investments, loans and monthly progress — so you can see the
-              whole picture, not just the transactions.
+      {/* —— Hero —— */}
+      <section className="relative flex min-h-[min(100dvh,900px)] flex-col items-center justify-center px-5 pb-16 pt-safe text-center sm:px-8">
+        <NirvanaLoaderLogo className="hero-reveal-scale h-[200px] min-h-[200px] w-auto max-w-[min(100%,420px)]" />
+
+        <p className="hero-reveal hero-delay-1 mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-accent">
+          Your money. Your goals. Your wealth journey.
+        </p>
+
+        <h1 className="hero-reveal hero-delay-2 mt-5 max-w-3xl font-serif text-[2.15rem] font-medium leading-[1.12] tracking-tight text-ink sm:text-5xl lg:text-[3.25rem] dark:text-white">
+          The complete picture of{' '}
+          <span className="hero-shimmer-text italic">your wealth</span>.
+        </h1>
+
+        <p className="hero-reveal hero-delay-3 mt-5 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-lg">
+          Wealth goals, investments, loans, income and expenses — brought together in one
+          simple, visual experience. Know where your money goes, what you are building, and
+          whether you are on track.
+        </p>
+
+        <SignInCta
+          busy={busy}
+          ready={ready}
+          onSignIn={onSignIn}
+          className="hero-reveal hero-delay-4 mt-10"
+        />
+
+        <PreviewCard className="hero-reveal-scale hero-delay-5 hero-float mt-14 lg:mt-16" />
+      </section>
+
+      {/* —— Capabilities —— */}
+      <section className="relative border-t border-ink/5 bg-surface/50 px-5 py-14 sm:px-8 dark:border-white/8 dark:bg-surface-dark/30">
+        <div className="mx-auto max-w-5xl">
+          <RevealOnScroll>
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-ink-faint">
+              Everything connected
             </p>
+            <h2 className="mt-3 text-center font-serif text-2xl font-medium text-ink sm:text-3xl dark:text-white">
+              Built for real financial life
+            </h2>
+          </RevealOnScroll>
 
-            <PreviewCard className="mt-8 min-w-0 lg:hidden" />
-
-            <ul className="mt-8 grid min-w-0 gap-3 sm:grid-cols-2">
-              {highlights.map((item) => (
-                <li
-                  key={item.title}
-                  className="min-w-0 rounded-[20px] border border-ink/5 bg-surface/80 p-4 dark:border-white/10 dark:bg-surface-dark/80"
-                >
-                  <span className={cn('grid h-9 w-9 place-items-center rounded-[12px]', item.tone)}>
-                    <item.icon className="h-4 w-4" strokeWidth={2.2} />
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:gap-5">
+            {capabilities.map((item, index) => (
+              <RevealOnScroll key={item.title} delayMs={index * 90}>
+                <li className="group hero-card-lift rounded-[22px] border border-ink/5 bg-surface p-5 text-left shadow-[var(--shadow-soft)] hover:border-accent/15 dark:border-white/8 dark:bg-surface-dark">
+                  <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-accent/10 text-accent transition-transform duration-300 group-hover:scale-110">
+                    <item.icon className="h-5 w-5" strokeWidth={2} />
                   </span>
-                  <p className="mt-3 text-sm font-semibold text-ink dark:text-white">{item.title}</p>
-                  <p className="mt-1 text-sm leading-snug text-ink-muted">{item.text}</p>
+                  <h3 className="mt-4 text-base font-semibold text-ink dark:text-white">{item.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.text}</p>
                 </li>
-              ))}
-            </ul>
+              </RevealOnScroll>
+            ))}
+          </ul>
 
-            <div className="mt-8 hidden max-w-sm lg:block">
-              <SignInForm busy={busy} ready={ready} onSignIn={onSignIn} />
-              <div className="mt-5 flex justify-start">
-                <PwaInstallLink />
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden min-w-0 flex-col items-center lg:flex">
-            <NirvanaLoaderLogo size="hero" className="h-[280px] w-[280px] xl:h-[320px] xl:w-[320px]" />
-            <PreviewCard className="mt-6 w-full" />
-          </div>
+          <RevealOnScroll delayMs={120}>
+            <p className="mt-12 text-center font-serif text-lg italic text-ink-muted">
+              Track today. Plan tomorrow. Build your future.
+            </p>
+          </RevealOnScroll>
         </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink/5 bg-canvas/90 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl dark:border-white/10 dark:bg-canvas-dark/90 lg:hidden">
-        <SignInForm busy={busy} ready={ready} onSignIn={onSignIn} />
-        <div className="mt-3 flex justify-center">
-          <PwaInstallLink />
-        </div>
-      </div>
+      </section>
     </div>
   )
 }
