@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button, Card, Field, Input, Select } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
@@ -34,8 +34,13 @@ type NotificationsSubview = 'actions' | 'calendar' | 'recurring'
 
 export function NotificationsTab({ currency }: { currency: SupportedCurrency }) {
   const finance = useFinance()
+  const { ensureRecurringActivities } = finance
   const today = todayIsoDate()
   const [subTab, setSubTab] = useState<NotificationsSubview>('actions')
+
+  useEffect(() => {
+    void ensureRecurringActivities()
+  }, [ensureRecurringActivities])
 
   const sorted = useMemo(
     () =>

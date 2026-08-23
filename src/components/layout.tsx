@@ -35,7 +35,7 @@ function MobileHeader() {
   if (!isDetailPage) return null
 
   return (
-    <header className="sticky top-0 z-20 bg-canvas/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden dark:bg-canvas-dark/90">
+    <header className="sticky top-0 z-20 bg-canvas/90 backdrop-blur-xl lg:hidden dark:bg-canvas-dark/90">
       <div className="flex h-12 items-center gap-1 px-1">
         {backTo ? (
           <button
@@ -127,7 +127,7 @@ function AppShellContent() {
       />
       <div className="mx-auto flex min-h-dvh w-full max-w-[1280px]">
         <DesktopSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col pt-safe lg:pt-0">
           <MobileHeader />
           <div className="px-5 pt-2 lg:px-8 lg:pt-4">
             <OfflineBanner />

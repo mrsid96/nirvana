@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
 import { GoalCard } from '@/components/GoalCard'
@@ -24,6 +24,7 @@ type WealthTab = 'goals' | 'activity'
 export function WealthPage() {
   const { profile } = useAuth()
   const finance = useFinance()
+  const { ensureRecentActivity } = finance
   const currency = profile?.currency ?? 'INR'
   const asOf = todayIsoDate()
   const [tab, setTab] = useState<WealthTab>('goals')
@@ -34,6 +35,10 @@ export function WealthPage() {
   const [targetDate, setTargetDate] = useState('2045-01-01')
   const [priority, setPriority] = useState<GoalPriority>('medium')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (tab === 'activity') void ensureRecentActivity()
+  }, [tab, ensureRecentActivity])
 
   const allAssets = useMemo(
     () => finance.assets.filter((asset) => !asset.isDeleted),

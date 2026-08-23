@@ -38,8 +38,33 @@ import type { Goal } from '@/types/goal'
 import type { Income } from '@/types/income'
 import type { Loan, LoanPayment } from '@/types/loan'
 import { emptyMonthlySummary } from '@/types/monthlySummary'
+import type { MonthlySummary } from '@/types/monthlySummary'
 import type { RecurringActivity, ScheduledOccurrence } from '@/types/recurring'
 import type { AssetTransaction } from '@/types/transaction'
+
+export interface CreateTransactionResult {
+  id: string
+  transaction: AssetTransaction
+}
+
+export interface CreateLoanPaymentResult {
+  id: string
+  payment: LoanPayment
+  loan: Loan
+  monthlySummary: MonthlySummary
+}
+
+export interface CreateExpenseResult {
+  id: string
+  expense: Expense
+  monthlySummary: MonthlySummary
+}
+
+export interface CreateIncomeResult {
+  id: string
+  income: Income
+  monthlySummary: MonthlySummary
+}
 
 function monthlyDeltaForTransaction(
   tx: Pick<AssetTransaction, 'type' | 'amount'>,
@@ -81,16 +106,15 @@ async function writeMonthlyDelta(
   await upsert(paths.monthlySummary(uid, month), { ...next, ...touch() })
 }
 
-async function loadGoalAssets(uid: string, goalId: string): Promise<Asset[]> {
-  const docs = await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
-    notDeleted(),
-    byField('goalId', goalId),
-  ])
-  return docs.map((raw) => mapAsset(raw)).filter((item) => !item.isDeleted)
-}
-
-async function refreshGoalSummary(uid: string, goalId: string) {
-  const assets = await loadGoalAssets(uid, goalId)
+async function refreshGoalSummary(uid: string, goalId: string, knownAssets?: Asset[]) {
+  const assets = knownAssets
+    ? knownAssets
+    : (
+        await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
+          notDeleted(),
+          byField('goalId', goalId),
+        ])
+      ).map((raw) => mapAsset(raw))
   await patch(paths.goal(uid, goalId), { ...goalWriteFields(goalId, assets), ...touch() })
 }
 
@@ -126,6 +150,7 @@ export async function deleteGoal(uid: string, id: string): Promise<void> {
 export async function createAsset(
   uid: string,
   input: Omit<Asset, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt'>,
+  options?: { goalAssets?: Asset[] },
 ): Promise<string> {
   const id = newId(paths.assets(uid))
   const asset: Asset = {
@@ -143,7 +168,8 @@ export async function createAsset(
     plannedDay: asset.plannedInvestmentDay,
     ...stamp(),
   })
-  await refreshGoalSummary(uid, input.goalId)
+  const assetsForGoal = [...(options?.goalAssets ?? []).filter((item) => !item.isDeleted), asset]
+  await refreshGoalSummary(uid, input.goalId, assetsForGoal)
   return id
 }
 
@@ -152,10 +178,15 @@ export async function updateAsset(
   goalId: string,
   id: string,
   input: Partial<Asset>,
+  options?: { existing?: Asset; goalAssets?: Asset[] },
 ): Promise<void> {
   const { id: _id, createdAt: _c, userId: _u, ...rest } = input
-  const existing = await getDocument<Record<string, unknown>>(paths.asset(uid, id))
-  if (!existing) throw new Error('Asset not found')
+  const existing =
+    options?.existing ??
+    (await getDocument<Record<string, unknown>>(paths.asset(uid, id)).then((raw) => {
+      if (!raw) throw new Error('Asset not found')
+      return mapAsset(raw, goalId)
+    }))
   const merged = mapAsset({ ...existing, ...rest, id }, goalId)
   await patch(paths.asset(uid, id), {
     ...rest,
@@ -164,19 +195,29 @@ export async function updateAsset(
     plannedDay: merged.plannedInvestmentDay,
     ...touch(),
   })
-  await refreshGoalSummary(uid, goalId)
+  const assetsForGoal = (options?.goalAssets ?? []).map((item) =>
+    item.id === id ? merged : item,
+  )
+  await refreshGoalSummary(uid, goalId, assetsForGoal.length > 0 ? assetsForGoal : undefined)
 }
 
-export async function deleteAsset(uid: string, goalId: string, id: string): Promise<void> {
+export async function deleteAsset(
+  uid: string,
+  goalId: string,
+  id: string,
+  options?: { goalAssets?: Asset[] },
+): Promise<void> {
   await patch(paths.asset(uid, id), { isDeleted: true, isActive: false, ...touch() })
-  await refreshGoalSummary(uid, goalId)
+  const assetsForGoal = (options?.goalAssets ?? []).filter((item) => item.id !== id)
+  await refreshGoalSummary(uid, goalId, assetsForGoal)
 }
 
 export async function createTransaction(
   uid: string,
   input: Omit<AssetTransaction, 'id' | 'isDeleted' | 'createdAt' | 'month' | 'updatedAt'>,
   asset: Asset,
-): Promise<string> {
+  options?: { siblingAssetIds?: string[] },
+): Promise<CreateTransactionResult> {
   const id = newId(paths.transactions(uid))
   const month = monthKeyFromDate(input.date)
   const tx: AssetTransaction = {
@@ -188,11 +229,16 @@ export async function createTransaction(
     createdAt: nowIso(),
   }
 
-  const goalAssetDocs = await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
-    notDeleted(),
-    byField('goalId', input.goalId),
-  ])
-  const goalAssetIds = goalAssetDocs.map((item) => String(item.id))
+  const siblingIds =
+    options?.siblingAssetIds ??
+    (
+      await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
+        notDeleted(),
+        byField('goalId', input.goalId),
+      ])
+    )
+      .map((item) => String(item.id))
+      .filter((assetId) => assetId !== asset.id)
 
   await runDbTransaction(async (transaction) => {
     const assetRef = dbDoc(paths.asset(uid, asset.id))
@@ -204,9 +250,7 @@ export async function createTransaction(
     const goalSnap = await transaction.get(goalRef)
     const summarySnap = await transaction.get(summaryRef)
     const otherAssetSnaps = await Promise.all(
-      goalAssetIds
-        .filter((assetId) => assetId !== asset.id)
-        .map((assetId) => transaction.get(dbDoc(paths.asset(uid, assetId)))),
+      siblingIds.map((assetId) => transaction.get(dbDoc(paths.asset(uid, assetId)))),
     )
 
     const currentAsset = mapAsset(
@@ -260,19 +304,25 @@ export async function createTransaction(
     transaction.set(summaryRef, clean({ ...nextSummary, ...touch() }), { merge: true })
   })
 
-  return id
+  return { id, transaction: { ...tx, source: asset.source } }
 }
 
 export async function deleteTransaction(
   uid: string,
   tx: AssetTransaction,
   asset: Asset,
+  options?: { siblingAssetIds?: string[] },
 ): Promise<void> {
-  const goalAssetDocs = await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
-    notDeleted(),
-    byField('goalId', tx.goalId),
-  ])
-  const goalAssetIds = goalAssetDocs.map((item) => String(item.id))
+  const siblingIds =
+    options?.siblingAssetIds ??
+    (
+      await queryDocuments<Record<string, unknown>>(paths.assets(uid), [
+        notDeleted(),
+        byField('goalId', tx.goalId),
+      ])
+    )
+      .map((item) => String(item.id))
+      .filter((assetId) => assetId !== asset.id)
 
   await runDbTransaction(async (transaction) => {
     const assetRef = dbDoc(paths.asset(uid, asset.id))
@@ -284,9 +334,7 @@ export async function deleteTransaction(
     const goalSnap = await transaction.get(goalRef)
     const summarySnap = await transaction.get(summaryRef)
     const otherAssetSnaps = await Promise.all(
-      goalAssetIds
-        .filter((assetId) => assetId !== asset.id)
-        .map((assetId) => transaction.get(dbDoc(paths.asset(uid, assetId)))),
+      siblingIds.map((assetId) => transaction.get(dbDoc(paths.asset(uid, assetId)))),
     )
 
     transaction.set(txRef, clean({ isDeleted: true, ...touch() }), { merge: true })
@@ -378,7 +426,8 @@ export async function createLoanPayment(
   uid: string,
   input: Omit<LoanPayment, 'id' | 'isDeleted' | 'createdAt' | 'month' | 'updatedAt'>,
   updateOutstanding = true,
-): Promise<string> {
+  options?: { loan?: Loan; currentSummary?: MonthlySummary | null },
+): Promise<CreateLoanPaymentResult> {
   const id = newId(paths.loanPayments(uid))
   const month = monthKeyFromDate(input.date)
   const payment: LoanPayment = {
@@ -389,6 +438,9 @@ export async function createLoanPayment(
     isDeleted: false,
     createdAt: nowIso(),
   }
+
+  let nextLoan = options?.loan
+  let nextSummary: MonthlySummary = emptyMonthlySummary(month)
 
   await runDbTransaction(async (transaction) => {
     const paymentRef = dbDoc(paths.loanPayment(uid, id))
@@ -405,52 +457,83 @@ export async function createLoanPayment(
       const principal = input.principalAmount ?? input.amount
       const outstandingAmount = Math.max(0, loan.outstandingAmount - principal)
       const totalPaid = Math.max(0, loan.originalAmount - outstandingAmount)
+      nextLoan = {
+        ...loan,
+        outstandingAmount,
+        totalPaid,
+        progressPercentage:
+          loan.originalAmount <= 0 ? 0 : (totalPaid / loan.originalAmount) * 100,
+        updatedAt: nowIso(),
+      }
       transaction.set(
         loanRef,
         clean({
-          outstandingAmount,
-          totalPaid,
-          progressPercentage: loan.originalAmount <= 0 ? 0 : (totalPaid / loan.originalAmount) * 100,
+          outstandingAmount: nextLoan.outstandingAmount,
+          totalPaid: nextLoan.totalPaid,
+          progressPercentage: nextLoan.progressPercentage,
           ...touch(),
         }),
         { merge: true },
       )
+    } else if (options?.loan) {
+      nextLoan = options.loan
     }
 
     const summaryRaw = snapshotData<Record<string, unknown>>(summarySnap)
     const currentSummary = summaryRaw
       ? mapMonthlySummary(summaryRaw, month)
-      : emptyMonthlySummary(month)
-    const nextSummary = applyMonthlyDelta(currentSummary, month, {
+      : options?.currentSummary ?? emptyMonthlySummary(month)
+    nextSummary = applyMonthlyDelta(currentSummary, month, {
       loanPayments: payment.amount,
       transactionCount: 1,
     })
     transaction.set(summaryRef, clean({ ...nextSummary, ...touch() }), { merge: true })
   })
 
-  return id
+  if (!nextLoan) throw new Error('Loan not found')
+  return { id, payment, loan: nextLoan, monthlySummary: nextSummary }
 }
 
 export async function createExpense(
   uid: string,
   input: Omit<Expense, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt' | 'month'>,
-): Promise<string> {
+  options?: { currentSummary?: MonthlySummary | null },
+): Promise<CreateExpenseResult> {
   const id = newId(paths.expenses(uid))
   const month = monthKeyFromDate(input.date)
-  await upsert(paths.expense(uid, id), {
+  const expense: Expense = {
     ...input,
     id,
     userId: uid,
     month,
     isDeleted: false,
-    ...stamp(),
-  })
-  if (input.category !== 'EMI') {
-    await writeMonthlyDelta(uid, month, { expenses: input.amount, transactionCount: 1 })
-  } else {
-    await writeMonthlyDelta(uid, month, { loanPayments: input.amount, transactionCount: 1 })
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
   }
-  return id
+  const delta =
+    input.category !== 'EMI'
+      ? { expenses: input.amount, transactionCount: 1 }
+      : { loanPayments: input.amount, transactionCount: 1 }
+
+  let monthlySummary = applyMonthlyDelta(
+    options?.currentSummary ?? emptyMonthlySummary(month),
+    month,
+    delta,
+  )
+
+  await runDbTransaction(async (transaction) => {
+    const expenseRef = dbDoc(paths.expense(uid, id))
+    const summaryRef = dbDoc(paths.monthlySummary(uid, month))
+    const summarySnap = await transaction.get(summaryRef)
+    const current = summarySnap.exists()
+      ? mapMonthlySummary(snapshotData(summarySnap)!, month)
+      : options?.currentSummary ?? emptyMonthlySummary(month)
+    monthlySummary = applyMonthlyDelta(current, month, delta)
+    transaction.set(expenseRef, clean({ ...expense, ...stamp() }))
+    transaction.set(summaryRef, clean({ ...monthlySummary, ...touch() }), { merge: true })
+  })
+
+  return { id, expense, monthlySummary }
 }
 
 export async function deleteExpense(uid: string, id: string): Promise<void> {
@@ -468,19 +551,41 @@ export async function deleteExpense(uid: string, id: string): Promise<void> {
 export async function createIncome(
   uid: string,
   input: Omit<Income, 'id' | 'isDeleted' | 'createdAt' | 'month' | 'updatedAt'>,
-): Promise<string> {
+  options?: { currentSummary?: MonthlySummary | null },
+): Promise<CreateIncomeResult> {
   const id = newId(paths.income(uid))
   const month = monthKeyFromDate(input.date)
-  await upsert(paths.incomeItem(uid, id), {
+  const income: Income = {
     ...input,
     id,
     userId: uid,
     month,
     isDeleted: false,
-    ...stamp(),
+    createdAt: nowIso(),
+  }
+
+  let monthlySummary = applyMonthlyDelta(
+    options?.currentSummary ?? emptyMonthlySummary(month),
+    month,
+    { income: input.amount, transactionCount: 1 },
+  )
+
+  await runDbTransaction(async (transaction) => {
+    const incomeRef = dbDoc(paths.incomeItem(uid, id))
+    const summaryRef = dbDoc(paths.monthlySummary(uid, month))
+    const summarySnap = await transaction.get(summaryRef)
+    const current = summarySnap.exists()
+      ? mapMonthlySummary(snapshotData(summarySnap)!, month)
+      : options?.currentSummary ?? emptyMonthlySummary(month)
+    monthlySummary = applyMonthlyDelta(current, month, {
+      income: input.amount,
+      transactionCount: 1,
+    })
+    transaction.set(incomeRef, clean({ ...income, ...stamp() }))
+    transaction.set(summaryRef, clean({ ...monthlySummary, ...touch() }), { merge: true })
   })
-  await writeMonthlyDelta(uid, month, { income: input.amount, transactionCount: 1 })
-  return id
+
+  return { id, income, monthlySummary }
 }
 
 export async function deleteIncome(uid: string, id: string): Promise<void> {
@@ -592,17 +697,30 @@ export async function recordScheduledOccurrence(
   context: {
     assets: Asset[]
     loans: Loan[]
+    currentSummary?: MonthlySummary | null
+    month?: string
   },
-): Promise<void> {
+): Promise<{
+  occurrence: ScheduledOccurrence
+  transaction?: CreateTransactionResult
+  loanPayment?: CreateLoanPaymentResult
+  expense?: CreateExpenseResult
+  income?: CreateIncomeResult
+}> {
   let actualTransactionId: string | undefined
   let actualLoanPaymentId: string | undefined
   let actualExpenseId: string | undefined
   let actualIncomeId: string | undefined
+  let transactionResult: CreateTransactionResult | undefined
+  let loanPaymentResult: CreateLoanPaymentResult | undefined
+  let expenseResult: CreateExpenseResult | undefined
+  let incomeResult: CreateIncomeResult | undefined
+  const month = context.month ?? monthKeyFromDate(params.actualDate)
 
   if (occurrence.type === 'INVESTMENT') {
     const asset = context.assets.find((item) => item.id === occurrence.assetId)
     if (!asset || !occurrence.goalId) throw new Error('Linked asset not found')
-    actualTransactionId = await createTransaction(
+    transactionResult = await createTransaction(
       uid,
       {
         assetId: asset.id,
@@ -613,10 +731,18 @@ export async function recordScheduledOccurrence(
         note: params.note,
       },
       asset,
+      {
+        siblingAssetIds: context.assets
+          .filter((item) => item.goalId === occurrence.goalId && item.id !== asset.id)
+          .map((item) => item.id),
+      },
     )
+    actualTransactionId = transactionResult.id
   } else if (occurrence.type === 'LOAN_PAYMENT') {
     if (!occurrence.loanId) throw new Error('Linked loan not found')
-    actualLoanPaymentId = await createLoanPayment(
+    const loan = context.loans.find((item) => item.id === occurrence.loanId)
+    if (!loan) throw new Error('Linked loan not found')
+    loanPaymentResult = await createLoanPayment(
       uid,
       {
         loanId: occurrence.loanId,
@@ -625,25 +751,29 @@ export async function recordScheduledOccurrence(
         note: params.note,
       },
       true,
+      { loan, currentSummary: context.currentSummary },
     )
+    actualLoanPaymentId = loanPaymentResult.id
   } else if (occurrence.type === 'INCOME') {
-    actualIncomeId = await createIncome(uid, {
+    incomeResult = await createIncome(uid, {
       amount: params.actualAmount,
       source: occurrence.incomeSource ?? occurrence.name,
       date: params.actualDate,
       description: params.note,
-    })
+    }, { currentSummary: context.currentSummary })
+    actualIncomeId = incomeResult.id
   } else if (occurrence.type === 'EXPENSE') {
-    actualExpenseId = await createExpense(uid, {
+    expenseResult = await createExpense(uid, {
       amount: params.actualAmount,
       category: occurrence.expenseCategory ?? 'Other',
       date: params.actualDate,
       description: params.note,
       paymentSource: 'Bank',
-    })
+    }, { currentSummary: context.currentSummary })
+    actualExpenseId = expenseResult.id
   }
 
-  await upsertScheduledOccurrence(uid, {
+  const recorded: ScheduledOccurrence = {
     ...occurrence,
     status: 'RECORDED',
     actualAmount: params.actualAmount,
@@ -654,7 +784,18 @@ export async function recordScheduledOccurrence(
     actualIncomeId,
     recordedAt: nowIso(),
     syncState: 'SYNCED',
-  })
+    month,
+  }
+
+  await upsertScheduledOccurrence(uid, recorded)
+
+  return {
+    occurrence: recorded,
+    transaction: transactionResult,
+    loanPayment: loanPaymentResult,
+    expense: expenseResult,
+    income: incomeResult,
+  }
 }
 
 export async function skipScheduledOccurrence(

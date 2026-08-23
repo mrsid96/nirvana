@@ -96,7 +96,10 @@ export function DashboardPage() {
   const notificationCount = useNotificationCount()
 
   useEffect(() => {
-    void ensureWealthHistory()
+    const timer = window.setTimeout(() => {
+      void ensureWealthHistory()
+    }, 1500)
+    return () => window.clearTimeout(timer)
   }, [ensureWealthHistory])
 
   const wealthHistory = useMemo(

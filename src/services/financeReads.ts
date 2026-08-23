@@ -1,5 +1,11 @@
 import { paths } from '@/firebase/paths'
-import { ACTIVITY_PAGE_SIZE, NOTIFICATION_QUERY_LIMIT, SCHEMA_VERSION } from '@/firebase/schema'
+import {
+  ACTIVITY_PAGE_SIZE,
+  DASHBOARD_RECENT_TX_LIMIT,
+  NOTIFICATION_QUERY_LIMIT,
+  SCHEMA_VERSION,
+} from '@/firebase/schema'
+import { markParallelBatch } from '@/firebase/performance'
 import {
   byField,
   getDocument,
@@ -125,39 +131,90 @@ export async function loadDerivedSummaries(
   uid: string,
   month = currentMonthKey(),
 ): Promise<Pick<FinanceCoreData, 'goals' | 'assets' | 'loans' | 'currentMonthlySummary'>> {
+  markParallelBatch()
   const [goalDocs, assetDocs, loanDocs, summaryDoc] = await Promise.all([
-    listDocuments<Record<string, unknown>>(paths.goals(uid)),
+    queryDocuments<Record<string, unknown>>(paths.goals(uid), [notDeleted()]),
     queryDocuments<Record<string, unknown>>(paths.assets(uid), [notDeleted()]),
-    listDocuments<Record<string, unknown>>(paths.loans(uid)),
+    queryDocuments<Record<string, unknown>>(paths.loans(uid), [notDeleted()]),
     getDocument<Record<string, unknown>>(paths.monthlySummary(uid, month)),
   ])
 
   return {
-    goals: goalDocs.map(mapGoal).filter((item) => !item.isDeleted),
-    assets: assetDocs.map((raw) => mapAsset(raw)).filter((item) => !item.isDeleted),
-    loans: loanDocs.map(mapLoan).filter((item) => !item.isDeleted),
+    goals: goalDocs.map(mapGoal),
+    assets: assetDocs.map((raw) => mapAsset(raw)),
+    loans: loanDocs.map(mapLoan),
     currentMonthlySummary: summaryDoc ? mapMonthlySummary(summaryDoc, month) : null,
   }
 }
 
-export async function loadCoreFinanceData(uid: string, month = currentMonthKey()): Promise<FinanceCoreData> {
-  const [goalDocs, assetDocs, loanDocs, occurrenceDocs, recurringDocs, summaryDoc] = await Promise.all([
-    listDocuments<Record<string, unknown>>(paths.goals(uid)),
+export interface DashboardData extends FinanceCoreData {
+  recentTransactions: AssetTransaction[]
+  recentTransactionCursor: QueryDocumentSnapshot | null
+  recentTransactionHasMore: boolean
+}
+
+/** Minimal parallel reads for Dashboard bootstrap — no loan payments or recurring rules. */
+export async function loadDashboardData(
+  uid: string,
+  month = currentMonthKey(),
+): Promise<DashboardData> {
+  markParallelBatch()
+  const [goalDocs, assetDocs, loanDocs, occurrenceDocs, summaryDoc, recentActivity] = await Promise.all([
+    queryDocuments<Record<string, unknown>>(paths.goals(uid), [notDeleted()]),
     queryDocuments<Record<string, unknown>>(paths.assets(uid), [notDeleted()]),
-    listDocuments<Record<string, unknown>>(paths.loans(uid)),
+    queryDocuments<Record<string, unknown>>(paths.loans(uid), [notDeleted()]),
     queryDocuments<Record<string, unknown>>(paths.scheduledOccurrences(uid), [
       where('status', 'in', ['UPCOMING', 'DUE', 'OVERDUE']),
       limit(NOTIFICATION_QUERY_LIMIT),
     ]),
-    listDocuments<Record<string, unknown>>(paths.recurringRules(uid)),
+    getDocument<Record<string, unknown>>(paths.monthlySummary(uid, month)),
+    queryRecentPage(paths.transactions(uid), mapTx, DASHBOARD_RECENT_TX_LIMIT),
+  ])
+
+  const goals = goalDocs.map(mapGoal)
+  const assets = assetDocs.map((raw) => mapAsset(raw))
+  const loans = loanDocs.map(mapLoan)
+  const scheduledOccurrences = occurrenceDocs.map(mapOccurrence)
+  const currentMonthlySummary = summaryDoc ? mapMonthlySummary(summaryDoc, month) : null
+
+  return {
+    goals,
+    assets,
+    loans,
+    monthlySummaries: currentMonthlySummary ? { [month]: currentMonthlySummary } : {},
+    currentMonthlySummary,
+    scheduledOccurrences,
+    recurringActivities: [],
+    recentTransactions: recentActivity.items,
+    recentTransactionCursor: recentActivity.cursor,
+    recentTransactionHasMore: recentActivity.hasMore,
+  }
+}
+
+export async function loadRecurringActivities(uid: string): Promise<RecurringActivity[]> {
+  const docs = await queryDocuments<Record<string, unknown>>(paths.recurringRules(uid), [notDeleted()])
+  return docs.map(mapRecurringActivity)
+}
+
+export async function loadCoreFinanceData(uid: string, month = currentMonthKey()): Promise<FinanceCoreData> {
+  markParallelBatch()
+  const [goalDocs, assetDocs, loanDocs, occurrenceDocs, recurringDocs, summaryDoc] = await Promise.all([
+    queryDocuments<Record<string, unknown>>(paths.goals(uid), [notDeleted()]),
+    queryDocuments<Record<string, unknown>>(paths.assets(uid), [notDeleted()]),
+    queryDocuments<Record<string, unknown>>(paths.loans(uid), [notDeleted()]),
+    queryDocuments<Record<string, unknown>>(paths.scheduledOccurrences(uid), [
+      where('status', 'in', ['UPCOMING', 'DUE', 'OVERDUE']),
+      limit(NOTIFICATION_QUERY_LIMIT),
+    ]),
+    queryDocuments<Record<string, unknown>>(paths.recurringRules(uid), [notDeleted()]),
     getDocument<Record<string, unknown>>(paths.monthlySummary(uid, month)),
   ])
 
-  const goals = goalDocs.map(mapGoal).filter((item) => !item.isDeleted)
-  const assets = assetDocs.map((raw) => mapAsset(raw)).filter((item) => !item.isDeleted)
-  const loans = loanDocs.map(mapLoan).filter((item) => !item.isDeleted)
-  const scheduledOccurrences = occurrenceDocs.map(mapOccurrence).filter((item) => !item.isDeleted)
-  const recurringActivities = recurringDocs.map(mapRecurringActivity).filter((item) => !item.isDeleted)
+  const goals = goalDocs.map(mapGoal)
+  const assets = assetDocs.map((raw) => mapAsset(raw))
+  const loans = loanDocs.map(mapLoan)
+  const scheduledOccurrences = occurrenceDocs.map(mapOccurrence)
+  const recurringActivities = recurringDocs.map(mapRecurringActivity)
   const currentMonthlySummary = summaryDoc
     ? mapMonthlySummary(summaryDoc, month)
     : null
@@ -185,8 +242,9 @@ export async function loadStatementMonthData(uid: string, month: string): Promis
   transactions: AssetTransaction[]
   loanPayments: LoanPayment[]
 }> {
-  const summaryDoc = await getDocument<Record<string, unknown>>(paths.monthlySummary(uid, month))
-  const [expenses, income, transactions, loanPayments] = await Promise.all([
+  markParallelBatch()
+  const [summaryDoc, expenses, income, transactions, loanPayments] = await Promise.all([
+    getDocument<Record<string, unknown>>(paths.monthlySummary(uid, month)),
     queryByDate(paths.expenses(uid), mapExpense, [
       notDeleted(),
       byField('month', month),

@@ -106,7 +106,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 .pt-safe {
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 @keyframes skeleton-pulse {

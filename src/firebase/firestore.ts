@@ -20,9 +20,9 @@ import {
   type QueryConstraint,
   type QueryDocumentSnapshot,
   type Timestamp,
-  type Transaction,
 } from 'firebase/firestore'
 import { getDb } from '@/firebase/config'
+import { trackFirestoreOperation } from '@/firebase/performance'
 
 export function nowIso(): string {
   return new Date().toISOString()
@@ -48,13 +48,21 @@ export function toIso(value: unknown): string {
 }
 
 export async function getDocument<T>(path: string): Promise<T | null> {
+  const started = performance.now()
   const snap = await getDoc(doc(getDb(), path))
+  trackFirestoreOperation('read', path, { durationMs: performance.now() - started })
   if (!snap.exists()) return null
   return { id: snap.id, ...snap.data() } as T
 }
 
 export async function listDocuments<T>(path: string): Promise<T[]> {
+  const started = performance.now()
   const snap = await getDocs(collection(getDb(), path))
+  trackFirestoreOperation('read', path, {
+    durationMs: performance.now() - started,
+    docCount: snap.size,
+    unfiltered: true,
+  })
   return snap.docs.map((item) => ({ id: item.id, ...item.data() }) as T)
 }
 
@@ -68,7 +76,13 @@ export async function queryDocuments<T>(
   path: string,
   constraints: QueryConstraint[],
 ): Promise<T[]> {
+  const started = performance.now()
   const snap = await getDocs(query(collection(getDb(), path), ...constraints))
+  trackFirestoreOperation('read', path, {
+    durationMs: performance.now() - started,
+    docCount: snap.size,
+    unfiltered: constraints.length === 0,
+  })
   return snap.docs.map((item) => ({ id: item.id, ...item.data() }) as T)
 }
 
@@ -80,7 +94,9 @@ export async function queryDocumentsPage<T>(
 ): Promise<ListedPage<T>> {
   const parts: QueryConstraint[] = [...constraints, limit(pageSize)]
   if (cursor) parts.push(startAfter(cursor))
+  const started = performance.now()
   const snap = await getDocs(query(collection(getDb(), path), ...parts))
+  trackFirestoreOperation('read', path, { durationMs: performance.now() - started, docCount: snap.size })
   const items = snap.docs.map((item) => ({ id: item.id, ...item.data() }) as T)
   const last = snap.docs.at(-1) ?? null
   return {
@@ -104,10 +120,12 @@ export function newestFirst(field = 'date'): QueryConstraint {
 
 export async function upsert(path: string, data: DocumentData): Promise<void> {
   await setDoc(doc(getDb(), path), clean(data), { merge: true })
+  trackFirestoreOperation('write', path)
 }
 
 export async function patch(path: string, data: DocumentData): Promise<void> {
   await updateDoc(doc(getDb(), path), clean(data))
+  trackFirestoreOperation('write', path)
 }
 
 export function newId(path: string): string {
@@ -119,11 +137,57 @@ export function dbDoc(path: string) {
 }
 
 export function createWriteBatch() {
-  return writeBatch(getDb())
+  const batch = writeBatch(getDb())
+  return {
+    set(
+      ref: ReturnType<typeof doc>,
+      data: DocumentData,
+      options?: { merge?: boolean },
+    ) {
+      if (options?.merge) batch.set(ref, clean(data), { merge: true })
+      else batch.set(ref, clean(data))
+      trackFirestoreOperation('write', ref.path)
+    },
+    delete(ref: ReturnType<typeof doc>) {
+      batch.delete(ref)
+      trackFirestoreOperation('write', ref.path)
+    },
+    commit() {
+      return batch.commit()
+    },
+  }
 }
 
-export async function runDbTransaction<T>(fn: (transaction: Transaction) => Promise<T>): Promise<T> {
-  return runTransaction(getDb(), fn)
+export async function runDbTransaction<T>(
+  fn: (transaction: {
+    get: (ref: ReturnType<typeof doc>) => Promise<DocumentSnapshot>
+    set: (
+      ref: ReturnType<typeof doc>,
+      data: DocumentData,
+      options?: { merge?: boolean },
+    ) => void
+    delete: (ref: ReturnType<typeof doc>) => void
+  }) => Promise<T>,
+): Promise<T> {
+  return runTransaction(getDb(), async (transaction) =>
+    fn({
+      async get(ref) {
+        const started = performance.now()
+        const snap = await transaction.get(ref)
+        trackFirestoreOperation('read', ref.path, { durationMs: performance.now() - started })
+        return snap
+      },
+      set(ref, data, options) {
+        if (options?.merge) transaction.set(ref, clean(data), { merge: true })
+        else transaction.set(ref, clean(data))
+        trackFirestoreOperation('write', ref.path)
+      },
+      delete(ref) {
+        transaction.delete(ref)
+        trackFirestoreOperation('write', ref.path)
+      },
+    }),
+  )
 }
 
 export async function flushPendingWrites(db?: Firestore): Promise<void> {
