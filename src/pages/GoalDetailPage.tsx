@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
@@ -36,7 +36,12 @@ import { buildGoalProjection } from '@/lib/calculations/projections'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney, formatPercent } from '@/lib/formatters/currency'
 import { getGoalTheme, type GoalTheme } from '@/lib/goal-theme'
-import { toMajorUnits, toMinorUnits } from '@/lib/money'
+import { toMajorUnits } from '@/lib/money'
+import {
+  parseAmountInput,
+  parseDayOfMonth,
+  parseRatePercent,
+} from '@/lib/validation/parse'
 import {
   ASSET_CATEGORY_LABELS,
   ASSET_SOURCE_LABELS,
@@ -66,6 +71,7 @@ export function GoalDetailPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const finance = useFinance()
+  const { ensureGoalDetail } = finance
   const currency = profile?.currency ?? 'INR'
   const asOf = todayIsoDate()
   const goal = finance.goals.find((item) => item.id === goalId)
@@ -76,6 +82,10 @@ export function GoalDetailPage() {
   const metrics = goal ? calculateGoalMetrics(goal, finance.assets, asOf) : null
   const theme = goal ? getGoalTheme(goal.name) : null
   useSetPageTitle(goal?.name ?? null)
+
+  useEffect(() => {
+    if (goalId) void ensureGoalDetail(goalId)
+  }, [ensureGoalDetail, goalId, finance.loading])
 
   const [tab, setTab] = useState<GoalTab>('overview')
   const [filterCategory, setFilterCategory] = useState('all')
@@ -91,6 +101,7 @@ export function GoalDetailPage() {
   const [confirm, setConfirm] = useState(false)
   const [editGoalOpen, setEditGoalOpen] = useState(false)
   const [goalName, setGoalName] = useState('')
+  const [goalDescription, setGoalDescription] = useState('')
   const [goalTarget, setGoalTarget] = useState('')
   const [goalTargetDate, setGoalTargetDate] = useState('')
   const [goalPriority, setGoalPriority] = useState<GoalPriority>('medium')
@@ -100,7 +111,11 @@ export function GoalDetailPage() {
   const [investmentType, setInvestmentType] = useState<InvestmentType>('SIP')
   const [currentValue, setCurrentValue] = useState('')
   const [monthly, setMonthly] = useState('')
+  const [plannedDay, setPlannedDay] = useState('5')
   const [cagr, setCagr] = useState('12')
+  const [valueUpdateAsset, setValueUpdateAsset] = useState<Asset | null>(null)
+  const [newValue, setNewValue] = useState('')
+  const [valueUpdateDate, setValueUpdateDate] = useState(asOf)
   const [busy, setBusy] = useState(false)
 
   const filterAssets = useMemo(() => {
@@ -181,9 +196,37 @@ export function GoalDetailPage() {
 
   async function onAddAsset(event: FormEvent) {
     event.preventDefault()
+    const valueParsed = parseAmountInput(currentValue, currency, { allowZero: true })
+    if (!valueParsed.ok) {
+      toast.error(valueParsed.message)
+      return
+    }
+    let monthlyMinor: number | undefined
+    if (monthly.trim()) {
+      const monthlyParsed = parseAmountInput(monthly, currency)
+      if (!monthlyParsed.ok) {
+        toast.error(monthlyParsed.message)
+        return
+      }
+      monthlyMinor = monthlyParsed.minor
+    }
+    let plannedDayNum = 1
+    if (monthlyMinor) {
+      const dayParsed = parseDayOfMonth(plannedDay)
+      if (!dayParsed.ok) {
+        toast.error(dayParsed.message)
+        return
+      }
+      plannedDayNum = dayParsed.day
+    }
+    const cagrParsed = cagr.trim() ? parseRatePercent(cagr) : null
+    if (cagrParsed && !cagrParsed.ok) {
+      toast.error(cagrParsed.message)
+      return
+    }
     setBusy(true)
     try {
-      const value = toMinorUnits(Number(currentValue || 0), currency)
+      const value = valueParsed.minor
       await finance.addAsset({
         goalId: goalId!,
         name,
@@ -193,8 +236,9 @@ export function GoalDetailPage() {
         investedAmount: value,
         currentValue: value,
         totalWithdrawals: 0,
-        expectedCagr: Number(cagr) || undefined,
-        monthlyInvestment: monthly ? toMinorUnits(Number(monthly), currency) : undefined,
+        expectedCagr: cagrParsed?.ok ? cagrParsed.rate : undefined,
+        monthlyInvestment: monthlyMinor,
+        plannedInvestmentDay: monthlyMinor ? plannedDayNum : undefined,
         isActive: true,
       })
       toast.success('Asset added. Nice move. ✨')
@@ -221,6 +265,7 @@ export function GoalDetailPage() {
         ? String(toMajorUnits(asset.monthlyInvestment, currency))
         : '',
     )
+    setPlannedDay(String(asset.plannedInvestmentDay ?? 5))
     setCagr(asset.expectedCagr != null ? String(asset.expectedCagr) : '12')
     setEditAssetOpen(true)
   }
@@ -228,6 +273,29 @@ export function GoalDetailPage() {
   async function onEditAsset(event: FormEvent) {
     event.preventDefault()
     if (!editingAsset) return
+    let monthlyMinor: number | undefined
+    if (monthly.trim()) {
+      const monthlyParsed = parseAmountInput(monthly, currency)
+      if (!monthlyParsed.ok) {
+        toast.error(monthlyParsed.message)
+        return
+      }
+      monthlyMinor = monthlyParsed.minor
+    }
+    let plannedDayNum = 1
+    if (monthlyMinor) {
+      const dayParsed = parseDayOfMonth(plannedDay)
+      if (!dayParsed.ok) {
+        toast.error(dayParsed.message)
+        return
+      }
+      plannedDayNum = dayParsed.day
+    }
+    const cagrParsed = cagr.trim() ? parseRatePercent(cagr) : null
+    if (cagrParsed && !cagrParsed.ok) {
+      toast.error(cagrParsed.message)
+      return
+    }
     setBusy(true)
     try {
       await finance.editAsset(goalId!, editingAsset.id, {
@@ -235,8 +303,9 @@ export function GoalDetailPage() {
         category,
         source,
         investmentType,
-        expectedCagr: Number(cagr) || undefined,
-        monthlyInvestment: monthly ? toMinorUnits(Number(monthly), currency) : undefined,
+        expectedCagr: cagrParsed?.ok ? cagrParsed.rate : undefined,
+        monthlyInvestment: monthlyMinor,
+        plannedInvestmentDay: monthlyMinor ? plannedDayNum : undefined,
       })
       toast.success('Asset updated')
       setEditAssetOpen(false)
@@ -258,11 +327,12 @@ export function GoalDetailPage() {
   async function onWithdraw(event: FormEvent) {
     event.preventDefault()
     if (!withdrawingAsset) return
-    const minor = toMinorUnits(Number(withdrawAmount), currency)
-    if (!Number.isFinite(minor) || minor <= 0) {
-      toast.error('Enter a valid amount')
+    const parsed = parseAmountInput(withdrawAmount, currency)
+    if (!parsed.ok) {
+      toast.error(parsed.message)
       return
     }
+    const minor = parsed.minor
     if (minor > withdrawingAsset.currentValue) {
       toast.error('Cannot withdraw more than the current value')
       return
@@ -294,11 +364,17 @@ export function GoalDetailPage() {
   async function onEditGoal(event: FormEvent) {
     event.preventDefault()
     if (!goal) return
+    const targetParsed = parseAmountInput(goalTarget, currency)
+    if (!targetParsed.ok) {
+      toast.error(targetParsed.message)
+      return
+    }
     setBusy(true)
     try {
       await finance.editGoal(goal.id, {
         name: goalName,
-        targetAmount: toMinorUnits(Number(goalTarget), currency),
+        description: goalDescription.trim() || undefined,
+        targetAmount: targetParsed.minor,
         targetDate: goalTargetDate,
         priority: goalPriority,
       })
@@ -314,10 +390,46 @@ export function GoalDetailPage() {
   function openEditGoal() {
     if (!goal) return
     setGoalName(goal.name)
+    setGoalDescription(goal.description ?? '')
     setGoalTarget(String(toMajorUnits(goal.targetAmount, currency)))
     setGoalTargetDate(goal.targetDate)
     setGoalPriority(goal.priority)
     setEditGoalOpen(true)
+  }
+
+  function openValueUpdate(asset: Asset) {
+    setValueUpdateAsset(asset)
+    setNewValue(String(toMajorUnits(asset.currentValue, currency)))
+    setValueUpdateDate(asOf)
+  }
+
+  async function onValueUpdate(event: FormEvent) {
+    event.preventDefault()
+    if (!valueUpdateAsset) return
+    const parsed = parseAmountInput(newValue, currency, { allowZero: true })
+    if (!parsed.ok) {
+      toast.error(parsed.message)
+      return
+    }
+    setBusy(true)
+    try {
+      await finance.addTransaction(
+        {
+          assetId: valueUpdateAsset.id,
+          goalId: goalId!,
+          type: 'VALUE_UPDATE',
+          amount: parsed.minor,
+          date: valueUpdateDate,
+        },
+        valueUpdateAsset,
+      )
+      toast.success('Value updated')
+      setValueUpdateAsset(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const trackMessage =
@@ -385,6 +497,7 @@ export function GoalDetailPage() {
           onAdd={() => setAssetOpen(true)}
           onEdit={openEditAsset}
           onWithdraw={openWithdraw}
+          onValueUpdate={openValueUpdate}
           onDelete={setDeletingAsset}
         />
       ) : null}
@@ -446,6 +559,8 @@ export function GoalDetailPage() {
           <GoalFormFields
             name={goalName}
             setName={setGoalName}
+            description={goalDescription}
+            setDescription={setGoalDescription}
             target={goalTarget}
             setTarget={setGoalTarget}
             targetDate={goalTargetDate}
@@ -473,6 +588,8 @@ export function GoalDetailPage() {
           setCurrentValue={setCurrentValue}
           monthly={monthly}
           setMonthly={setMonthly}
+          plannedDay={plannedDay}
+          setPlannedDay={setPlannedDay}
           cagr={cagr}
           setCagr={setCagr}
           busy={busy}
@@ -493,6 +610,8 @@ export function GoalDetailPage() {
           setInvestmentType={setInvestmentType}
           monthly={monthly}
           setMonthly={setMonthly}
+          plannedDay={plannedDay}
+          setPlannedDay={setPlannedDay}
           cagr={cagr}
           setCagr={setCagr}
           busy={busy}
@@ -500,6 +619,44 @@ export function GoalDetailPage() {
           onSubmit={onEditAsset}
           hideValue
         />
+      </FormPanel>
+
+      <FormPanel
+        open={valueUpdateAsset !== null}
+        onOpenChange={(open) => {
+          if (!open) setValueUpdateAsset(null)
+        }}
+        title={`Update value — ${valueUpdateAsset?.name ?? 'asset'}`}
+      >
+        {valueUpdateAsset ? (
+          <form className="space-y-4" onSubmit={onValueUpdate}>
+            <div className="rounded-[16px] bg-surface px-4 py-4 dark:bg-surface-dark">
+              <p className="text-sm text-ink-muted">Previous value</p>
+              <p className="font-display mt-1 text-xl font-semibold text-ink dark:text-white">
+                {formatMoney(valueUpdateAsset.currentValue, currency)}
+              </p>
+            </div>
+            <Field label="New current value">
+              <Input
+                inputMode="decimal"
+                value={newValue}
+                onChange={(event) => setNewValue(event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Date">
+              <Input
+                type="date"
+                value={valueUpdateDate}
+                onChange={(event) => setValueUpdateDate(event.target.value)}
+                required
+              />
+            </Field>
+            <Button type="submit" className="w-full" size="lg" disabled={busy}>
+              {busy ? 'Updating…' : 'Update value'}
+            </Button>
+          </form>
+        ) : null}
       </FormPanel>
 
       <ConfirmBar
@@ -748,6 +905,7 @@ function GoalAssetsTab({
   onAdd,
   onEdit,
   onWithdraw,
+  onValueUpdate,
   onDelete,
 }: {
   assets: Asset[]
@@ -758,6 +916,7 @@ function GoalAssetsTab({
   onAdd: () => void
   onEdit: (asset: Asset) => void
   onWithdraw: (asset: Asset) => void
+  onValueUpdate: (asset: Asset) => void
   onDelete: (asset: Asset) => void
 }) {
   return (
@@ -811,6 +970,7 @@ function GoalAssetsTab({
                 currency={currency}
                 onEdit={() => onEdit(asset)}
                 onWithdraw={() => onWithdraw(asset)}
+                onValueUpdate={() => onValueUpdate(asset)}
                 onDelete={() => onDelete(asset)}
               />
             ))}
@@ -833,6 +993,8 @@ function AssetForm({
   setCurrentValue,
   monthly,
   setMonthly,
+  plannedDay,
+  setPlannedDay,
   cagr,
   setCagr,
   busy,
@@ -852,6 +1014,8 @@ function AssetForm({
   setCurrentValue?: (v: string) => void
   monthly: string
   setMonthly: (v: string) => void
+  plannedDay: string
+  setPlannedDay: (v: string) => void
   cagr: string
   setCagr: (v: string) => void
   busy: boolean
@@ -894,6 +1058,16 @@ function AssetForm({
         <Field label="Monthly SIP">
           <Input inputMode="decimal" value={monthly} onChange={(e) => setMonthly(e.target.value)} />
         </Field>
+        {monthly ? (
+          <Field label="SIP day of month">
+            <Input
+              inputMode="numeric"
+              value={plannedDay}
+              onChange={(e) => setPlannedDay(e.target.value)}
+              placeholder="1–31"
+            />
+          </Field>
+        ) : null}
         <Field label="Expected CAGR %">
           <Input inputMode="decimal" value={cagr} onChange={(e) => setCagr(e.target.value)} />
         </Field>
@@ -910,12 +1084,14 @@ function AssetRow({
   currency,
   onEdit,
   onWithdraw,
+  onValueUpdate,
   onDelete,
 }: {
   asset: Asset
   currency: SupportedCurrency
   onEdit: () => void
   onWithdraw: () => void
+  onValueUpdate: () => void
   onDelete: () => void
 }) {
   const gain = assetGainLoss(asset)
@@ -957,6 +1133,9 @@ function AssetRow({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={onEdit}>
           Edit
+        </Button>
+        <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={onValueUpdate}>
+          Update value
         </Button>
         <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={onWithdraw}>
           Withdraw

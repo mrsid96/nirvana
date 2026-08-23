@@ -1,7 +1,8 @@
 import type { AssetTransaction } from '@/types/transaction'
 import type { Expense } from '@/types/expense'
 import type { Income } from '@/types/income'
-import type { Loan } from '@/types/loan'
+import type { Loan, LoanPayment } from '@/types/loan'
+import type { MonthlySummary } from '@/types/monthlySummary'
 
 export interface CashFlowBreakdown {
   income: number
@@ -17,6 +18,7 @@ export function calculateMonthlyCashFlow(params: {
   expenses: Expense[]
   transactions: AssetTransaction[]
   loans: Loan[]
+  loanPayments?: LoanPayment[]
   month: string
   includeScheduledEmi?: boolean
   recordedLoanPayments?: number
@@ -33,12 +35,16 @@ export function calculateMonthlyCashFlow(params: {
     .filter((tx) => !tx.isDeleted && tx.type === 'WITHDRAWAL' && tx.month === params.month)
     .reduce((sum, tx) => sum + tx.amount, 0)
 
+  const recordedFromPayments = params.loanPayments
+    ? sumForMonth(params.loanPayments, params.month)
+    : 0
+  const recordedFromEmiExpenses = sumForMonth(
+    params.expenses.filter((item) => item.category === 'EMI'),
+    params.month,
+  )
   const recorded =
     params.recordedLoanPayments ??
-    sumForMonth(
-      params.expenses.filter((item) => item.category === 'EMI'),
-      params.month,
-    )
+    (recordedFromPayments > 0 ? recordedFromPayments : recordedFromEmiExpenses)
   const scheduled = params.includeScheduledEmi
     ? params.loans
         .filter((loan) => !loan.isDeleted && loan.status === 'ACTIVE')
@@ -53,6 +59,29 @@ export function calculateMonthlyCashFlow(params: {
     withdrawals,
     loanPayments,
     freeCashFlow: income - expenses - loanPayments - investments + withdrawals,
+  }
+}
+
+export function cashFlowFromMonthlySummary(
+  summary: MonthlySummary | null | undefined,
+  loans: Loan[],
+  includeScheduledEmi = true,
+): CashFlowBreakdown | null {
+  if (!summary) return null
+  const scheduled = includeScheduledEmi
+    ? loans
+        .filter((loan) => !loan.isDeleted && loan.status === 'ACTIVE')
+        .reduce((sum, loan) => sum + loan.emiAmount, 0)
+    : 0
+  const loanPayments = summary.loanPayments > 0 ? summary.loanPayments : scheduled
+  return {
+    income: summary.income,
+    expenses: summary.expenses,
+    investments: summary.investments,
+    withdrawals: summary.withdrawals,
+    loanPayments,
+    freeCashFlow:
+      summary.income - summary.expenses - loanPayments - summary.investments + summary.withdrawals,
   }
 }
 

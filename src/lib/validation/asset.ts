@@ -10,7 +10,7 @@ export const assetSchema = z.object({
   currentValue: moneyMinorSchema,
   expectedCagr: z.number().min(0).max(100).optional(),
   monthlyInvestment: moneyMinorSchema.optional(),
-  plannedInvestmentDay: z.number().int().min(1).max(28).optional(),
+  plannedInvestmentDay: z.number().int().min(1).max(31).optional(),
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
   notes: z.string().trim().max(500).optional(),

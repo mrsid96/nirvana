@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, ConfirmBar, SectionTitle } from '@/components/ui'
 import { MoneyFlow, SummaryGrid } from '@/components/MoneyFlow'
 import { useFinance } from '@/contexts/FinanceContext'
-import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
+import { calculateMonthlyCashFlow, cashFlowFromMonthlySummary } from '@/lib/calculations/cashflow'
 import { formatDisplayDate, formatMonthLabel, monthKeyFromDate, shiftMonth } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import type { SupportedCurrency } from '@/types/user'
@@ -19,21 +19,28 @@ export function MonthlyStatement({
   currency: SupportedCurrency
 }) {
   const finance = useFinance()
+  const { ensureStatementMonth } = finance
   const [deletingExpense, setDeletingExpense] = useState<string | null>(null)
   const [deletingIncome, setDeletingIncome] = useState<string | null>(null)
 
-  const cashflow = useMemo(
-    () =>
-      calculateMonthlyCashFlow({
-        income: finance.income,
-        expenses: finance.expenses,
-        transactions: finance.transactions,
-        loans: finance.loans,
-        month,
-        includeScheduledEmi: true,
-      }),
-    [finance, month],
-  )
+  useEffect(() => {
+    void ensureStatementMonth(month)
+  }, [ensureStatementMonth, month, finance.loading])
+
+  const cashflow = useMemo(() => {
+    const summary = finance.monthlySummaries[month] ?? null
+    const fromSummary = cashFlowFromMonthlySummary(summary, finance.loans, true)
+    if (fromSummary) return fromSummary
+    return calculateMonthlyCashFlow({
+      income: finance.income,
+      expenses: finance.expenses,
+      transactions: finance.transactions,
+      loans: finance.loans,
+      loanPayments: finance.loanPayments,
+      month,
+      includeScheduledEmi: true,
+    })
+  }, [finance, month])
 
   const monthExpenses = useMemo(
     () =>

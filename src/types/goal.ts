@@ -4,6 +4,7 @@ export type GoalTrackStatus = 'Ahead' | 'On Track' | 'Behind' | 'Completed'
 
 export interface Goal {
   id: string
+  userId?: string
   name: string
   description?: string
   targetAmount: number
@@ -11,6 +12,12 @@ export interface Goal {
   targetDate: string
   priority: GoalPriority
   status: GoalStatus
+  /** Derived from assets — cached for fast reads. */
+  currentValue?: number
+  investedAmount?: number
+  withdrawnAmount?: number
+  netInvestedAmount?: number
+  monthlyInvestment?: number
   isDeleted: boolean
   createdAt: string
   updatedAt: string

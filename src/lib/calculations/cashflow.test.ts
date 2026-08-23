@@ -3,6 +3,7 @@ import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
 import type { Expense } from '@/types/expense'
 import type { Income } from '@/types/income'
 import type { Loan } from '@/types/loan'
+import type { LoanPayment } from '@/types/loan'
 import type { AssetTransaction } from '@/types/transaction'
 
 const income = (amount: number): Income => ({
@@ -116,5 +117,50 @@ describe('monthly cash flow', () => {
     })
     expect(result.loanPayments).toBe(75_000)
     expect(result.freeCashFlow).toBe(145_000)
+  })
+
+  it('prefers recorded loan payments over scheduled EMI', () => {
+    const payment: LoanPayment = {
+      id: 'p1',
+      loanId: 'l1',
+      amount: 80_000,
+      date: '2026-08-07',
+      month: '2026-08',
+      isDeleted: false,
+      createdAt: '2026-08-07T00:00:00.000Z',
+    }
+    const result = calculateMonthlyCashFlow({
+      income: [income(400_000)],
+      expenses: [],
+      transactions: [],
+      loans: [loan()],
+      loanPayments: [payment],
+      month: '2026-08',
+      includeScheduledEmi: true,
+    })
+    expect(result.loanPayments).toBe(80_000)
+    expect(result.freeCashFlow).toBe(320_000)
+  })
+
+  it('excludes EMI category from spending totals', () => {
+    const emiExpense: Expense = {
+      id: 'e2',
+      amount: 75_000,
+      category: 'EMI',
+      date: '2026-08-03',
+      month: '2026-08',
+      isDeleted: false,
+      createdAt: '2026-08-03T00:00:00.000Z',
+      updatedAt: '2026-08-03T00:00:00.000Z',
+    }
+    const result = calculateMonthlyCashFlow({
+      income: [income(400_000)],
+      expenses: [expense(80_000), emiExpense],
+      transactions: [],
+      loans: [],
+      month: '2026-08',
+    })
+    expect(result.expenses).toBe(80_000)
+    expect(result.loanPayments).toBe(75_000)
   })
 })

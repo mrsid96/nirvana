@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { tabItems, tabTitles } from '@/lib/navigation'
 import { quickActions } from '@/lib/quick-actions'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { FinanceErrorBanner } from '@/components/FinanceErrorBanner'
 import { FabMenu } from '@/components/FabMenu'
 import { QuickSheets } from '@/components/QuickSheets'
 import { PageTitleProvider, usePageTitleValue } from '@/contexts/PageTitleContext'
@@ -130,6 +131,7 @@ function AppShellContent() {
           <MobileHeader />
           <div className="px-5 pt-2 lg:px-8 lg:pt-4">
             <OfflineBanner />
+            <FinanceErrorBanner />
           </div>
           <main className="flex-1 px-5 pb-28 pt-2 lg:px-8 lg:pb-10 lg:pt-6">
             <Outlet />

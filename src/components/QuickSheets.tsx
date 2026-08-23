@@ -5,7 +5,7 @@ import { AmountInput, Button, Field, Input, Pill, Select } from '@/components/ui
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { todayIsoDate } from '@/lib/formatters/dates'
-import { toMinorUnits } from '@/lib/money'
+import { parseAmountInput } from '@/lib/validation/parse'
 import {
   getQuickSheetSuccessMessage,
   getQuickSheetTitle,
@@ -64,11 +64,12 @@ export function QuickSheets({
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!open) return
-    const minor = toMinorUnits(Number(amount), currency)
-    if (!Number.isFinite(minor) || minor <= 0) {
-      toast.error('Enter a valid amount')
+    const parsed = parseAmountInput(amount, currency)
+    if (!parsed.ok) {
+      toast.error(parsed.message)
       return
     }
+    const minor = parsed.minor
     setBusy(true)
     try {
       if (open === 'expense') {

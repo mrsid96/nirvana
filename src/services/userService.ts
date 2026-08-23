@@ -13,9 +13,31 @@ function mapProfile(raw: Record<string, unknown>, uid: string, fallback?: User):
     country: String(raw.country ?? 'IN'),
     currency: (raw.currency as SupportedCurrency) ?? 'INR',
     onboardingComplete: Boolean(raw.onboardingComplete),
+    schemaVersion: raw.schemaVersion == null ? undefined : Number(raw.schemaVersion),
     createdAt: toIso(raw.createdAt),
     updatedAt: toIso(raw.updatedAt),
   }
+}
+
+function mapSettings(raw: Record<string, unknown>): UserSettings {
+  return {
+    currency: (raw.currency as SupportedCurrency) ?? 'INR',
+    country: String(raw.country ?? 'IN'),
+    dashboardMonth: String(raw.dashboardMonth ?? currentMonthKey()),
+    theme: (raw.theme as ThemeMode) ?? 'light',
+    createdAt: toIso(raw.createdAt),
+    updatedAt: toIso(raw.updatedAt),
+  }
+}
+
+async function readSettings(uid: string): Promise<UserSettings | null> {
+  const raw = await getDocument<Record<string, unknown>>(paths.settings(uid))
+  if (raw) return mapSettings(raw)
+  const legacy = await getDocument<Record<string, unknown>>(paths.legacySettings(uid))
+  if (!legacy) return null
+  const settings = mapSettings(legacy)
+  await upsert(paths.settings(uid), { ...settings, ...touch() })
+  return settings
 }
 
 export async function ensureUserProfile(user: User): Promise<UserProfile> {
@@ -51,6 +73,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     country: 'IN',
     currency: 'INR',
     onboardingComplete: false,
+    schemaVersion: 1,
     ...stamp(),
   })
   await upsert(paths.settings(user.uid), {
@@ -68,22 +91,14 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     country: 'IN',
     currency: 'INR',
     onboardingComplete: false,
+    schemaVersion: 1,
     createdAt,
     updatedAt: createdAt,
   }
 }
 
 export async function getSettings(uid: string): Promise<UserSettings | null> {
-  const raw = await getDocument<Record<string, unknown>>(paths.settings(uid))
-  if (!raw) return null
-  return {
-    currency: (raw.currency as SupportedCurrency) ?? 'INR',
-    country: String(raw.country ?? 'IN'),
-    dashboardMonth: String(raw.dashboardMonth ?? currentMonthKey()),
-    theme: (raw.theme as ThemeMode) ?? 'light',
-    createdAt: toIso(raw.createdAt),
-    updatedAt: toIso(raw.updatedAt),
-  }
+  return readSettings(uid)
 }
 
 export async function updateSettings(

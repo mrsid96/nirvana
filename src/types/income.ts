@@ -10,6 +10,7 @@ export type IncomeSource = (typeof INCOME_SOURCES)[number]
 
 export interface Income {
   id: string
+  userId?: string
   amount: number
   source: string
   description?: string
@@ -17,4 +18,5 @@ export interface Income {
   month: string
   isDeleted: boolean
   createdAt: string
+  updatedAt?: string
 }

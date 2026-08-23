@@ -1,22 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp } from 'lucide-react'
 import { Card, EmptyState, HeroCard } from '@/components/ui'
 import { HealthCard } from '@/components/HealthCard'
 import { MilestoneBanner, useMilestones } from '@/components/MilestoneBanner'
 import { MoneyFlow, SummaryGrid } from '@/components/MoneyFlow'
+import { NotificationsTab, useNotificationCount } from '@/components/NotificationsTab'
 import { ProfileAvatar } from '@/components/ProfileAvatar'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { DashboardSkeleton } from '@/components/Skeleton'
-import { ChartCard, DonutChart } from '@/components/charts'
+import { ChartCard, DonutChart, WealthGrowthChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
-import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
+import { calculateMonthlyCashFlow, cashFlowFromMonthlySummary } from '@/lib/calculations/cashflow'
 import { calculateFinancialHealth } from '@/lib/calculations/financialHealth'
 import { weightedGoalProgress } from '@/lib/calculations/goals'
 import { loanBurdenRatio, totalMonthlyEmi, totalOutstanding } from '@/lib/calculations/loans'
 import { currentMonthKey, formatMonthLabel, greetingForNow, todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import { firstName } from '@/lib/utils'
+import { buildHistoricalWealthSeries } from '@/lib/calculations/wealthHistory'
 import { ASSET_CATEGORY_LABELS } from '@/types/asset'
 import type { SupportedCurrency } from '@/types/user'
 
@@ -39,23 +41,29 @@ type HomeTab = 'month' | 'notifications'
 export function DashboardPage() {
   const { profile } = useAuth()
   const finance = useFinance()
+  const { ensureWealthHistory } = finance
   const [tab, setTab] = useState<HomeTab>('month')
   const currency = profile?.currency ?? 'INR'
   const month = currentMonthKey()
   const asOf = todayIsoDate()
 
-  const cashflow = useMemo(
-    () =>
-      calculateMonthlyCashFlow({
-        income: finance.income,
-        expenses: finance.expenses,
-        transactions: finance.transactions,
-        loans: finance.loans,
-        month,
-        includeScheduledEmi: true,
-      }),
-    [finance, month],
-  )
+  const cashflow = useMemo(() => {
+    const fromSummary = cashFlowFromMonthlySummary(
+      finance.currentMonthlySummary,
+      finance.loans,
+      true,
+    )
+    if (fromSummary) return fromSummary
+    return calculateMonthlyCashFlow({
+      income: finance.income,
+      expenses: finance.expenses,
+      transactions: finance.transactions,
+      loans: finance.loans,
+      loanPayments: finance.loanPayments,
+      month,
+      includeScheduledEmi: true,
+    })
+  }, [finance, month])
 
   const allocation = useMemo(() => {
     const map = new Map<string, number>()
@@ -85,6 +93,21 @@ export function DashboardPage() {
 
   const name = firstName(profile?.displayName)
   const milestones = useMilestones(currency as SupportedCurrency)
+  const notificationCount = useNotificationCount()
+
+  useEffect(() => {
+    void ensureWealthHistory()
+  }, [ensureWealthHistory])
+
+  const wealthHistory = useMemo(
+    () =>
+      buildHistoricalWealthSeries(finance.assets, finance.transactions, asOf, 12).map((point) => ({
+        label: point.label,
+        wealth: point.wealth,
+        target: 0,
+      })),
+    [finance.assets, finance.transactions, asOf],
+  )
 
   if (finance.loading) return <DashboardSkeleton />
 
@@ -158,7 +181,11 @@ export function DashboardPage() {
         onChange={setTab}
         options={[
           { value: 'month', label: 'This month' },
-          { value: 'notifications', label: 'Notifications' },
+          {
+            value: 'notifications',
+            label: notificationCount > 0 ? 'Notifications' : 'All caught up ✨',
+            badge: notificationCount > 0 ? notificationCount : undefined,
+          },
         ]}
       />
 
@@ -193,16 +220,25 @@ export function DashboardPage() {
             }}
             message={healthMessage(health.overallLabel)}
           />
+          <ChartCard title="Wealth journey" subtitle="Historical wealth from your tracked activity">
+            {wealthHistory.length >= 2 ? (
+              <WealthGrowthChart
+                data={wealthHistory}
+                showTarget={false}
+                formatValue={(value) => formatMoney(value, currency, { compact: true })}
+              />
+            ) : (
+              <EmptyState
+                emoji="📈"
+                title="Not enough history yet"
+                body="Your wealth journey will appear here as you continue tracking."
+              />
+            )}
+          </ChartCard>
         </section>
       ) : null}
 
-      {tab === 'notifications' ? (
-        <EmptyState
-          emoji="🔔"
-          title="No notifications yet"
-          body="Milestones, reminders, and insights will appear here soon."
-        />
-      ) : null}
+      {tab === 'notifications' ? <NotificationsTab currency={currency} /> : null}
     </div>
   )
 }

@@ -63,12 +63,34 @@ export function withdrawalsByGoalMap(
   const map = new Map<string, number>()
   for (const tx of transactions) {
     if (tx.isDeleted || tx.type !== 'WITHDRAWAL') continue
-    const goalName = idToName.get(tx.assetId) ?? 'Unknown'
+    const goalName = idToName.get(tx.goalId) ?? 'Unknown'
     map.set(goalName, (map.get(goalName) ?? 0) + tx.amount)
   }
   return [...map.entries()]
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
+}
+
+export function withdrawalsByAssetMap(
+  assets: Asset[],
+  transactions: AssetTransaction[],
+): { name: string; value: number }[] {
+  const idToName = new Map(assets.map((asset) => [asset.id, asset.name]))
+  const map = new Map<string, number>()
+  for (const tx of transactions) {
+    if (tx.isDeleted || tx.type !== 'WITHDRAWAL') continue
+    const assetName = idToName.get(tx.assetId) ?? 'Unknown'
+    map.set(assetName, (map.get(assetName) ?? 0) + tx.amount)
+  }
+  return [...map.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+}
+
+export function totalWithdrawals(transactions: AssetTransaction[]): number {
+  return transactions
+    .filter((tx) => !tx.isDeleted && tx.type === 'WITHDRAWAL')
+    .reduce((sum, tx) => sum + tx.amount, 0)
 }
 
 export function byCategory(assets: Asset[]): AllocationDatum[] {

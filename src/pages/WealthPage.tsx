@@ -8,14 +8,14 @@ import { SegmentedControl } from '@/components/SegmentedControl'
 import { WealthSkeleton } from '@/components/Skeleton'
 import { Button, Card, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
-import { ChartCard, DonutChart } from '@/components/charts'
+import { AllocationList, ChartCard, DonutChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateGoalMetrics } from '@/lib/calculations/goals'
-import { allocationByGoal } from '@/lib/calculations/analytics'
+import { allocationByGoal, totalWithdrawals, withdrawalsByAssetMap, withdrawalsByGoalMap, withdrawalsByMonth } from '@/lib/calculations/analytics'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
-import { toMinorUnits } from '@/lib/money'
+import { parseAmountInput } from '@/lib/validation/parse'
 import type { GoalPriority } from '@/types/goal'
 import type { SupportedCurrency } from '@/types/user'
 
@@ -29,6 +29,7 @@ export function WealthPage() {
   const [tab, setTab] = useState<WealthTab>('goals')
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [target, setTarget] = useState('')
   const [targetDate, setTargetDate] = useState('2045-01-01')
   const [priority, setPriority] = useState<GoalPriority>('medium')
@@ -56,6 +57,23 @@ export function WealthPage() {
   const byGoal = useMemo(
     () => allocationByGoal(finance.goals, allAssets),
     [allAssets, finance.goals],
+  )
+
+  const withdrawalTotal = useMemo(
+    () => totalWithdrawals(finance.transactions),
+    [finance.transactions],
+  )
+  const withdrawalsByGoal = useMemo(
+    () => withdrawalsByGoalMap(finance.goals, finance.transactions),
+    [finance.goals, finance.transactions],
+  )
+  const withdrawalsByAsset = useMemo(
+    () => withdrawalsByAssetMap(allAssets, finance.transactions),
+    [allAssets, finance.transactions],
+  )
+  const withdrawalsMonthly = useMemo(
+    () => withdrawalsByMonth(finance.transactions),
+    [finance.transactions],
   )
 
   const activityItems = useMemo((): TimelineItem[] => {
@@ -89,11 +107,21 @@ export function WealthPage() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault()
+    if (!name.trim()) {
+      toast.error('Enter a goal name')
+      return
+    }
+    const targetParsed = parseAmountInput(target, currency)
+    if (!targetParsed.ok) {
+      toast.error(targetParsed.message)
+      return
+    }
     setBusy(true)
     try {
       await finance.addGoal({
         name,
-        targetAmount: toMinorUnits(Number(target), currency),
+        description: description.trim() || undefined,
+        targetAmount: targetParsed.minor,
         startDate: asOf,
         targetDate,
         priority,
@@ -102,6 +130,7 @@ export function WealthPage() {
       toast.success('Goal created. Let\'s build something. ✨')
       setOpen(false)
       setName('')
+      setDescription('')
       setTarget('')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save')
@@ -177,15 +206,69 @@ export function WealthPage() {
       ) : null}
 
       {tab === 'activity' ? (
-        <section className="space-y-3">
-          <SectionTitle title="Recent activity" subtitle="Investments and withdrawals across goals" />
-          <Card variant="flat">
-            <ActivityTimeline
-              items={activityItems}
-              currency={currency}
-              emptyMessage="Nothing here yet. Add an investment to see activity."
-            />
-          </Card>
+        <section className="space-y-6">
+          <div className="space-y-3">
+            <SectionTitle title="Recent activity" subtitle="Investments and withdrawals across goals" />
+            <Card variant="flat">
+              <ActivityTimeline
+                items={activityItems}
+                currency={currency}
+                emptyMessage="Nothing here yet. Add an investment to see activity."
+              />
+            </Card>
+          </div>
+
+          {withdrawalTotal > 0 ? (
+            <div className="space-y-3">
+              <SectionTitle title="Withdrawal analytics" subtitle="Where money left your portfolio" />
+              <ChartCard>
+                <p className="text-sm text-ink-muted">Total withdrawals</p>
+                <p className="font-display mt-1 text-2xl font-semibold text-ink dark:text-white">
+                  {formatMoney(withdrawalTotal, currency, { compact: true })}
+                </p>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  {withdrawalsByGoal.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink dark:text-white">By goal</h4>
+                      <div className="mt-2">
+                        <AllocationList
+                          data={withdrawalsByGoal}
+                          formatValue={(value) => formatMoney(value, currency, { compact: true })}
+                          empty="No withdrawals by goal"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  {withdrawalsByAsset.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink dark:text-white">By asset</h4>
+                      <div className="mt-2">
+                        <AllocationList
+                          data={withdrawalsByAsset}
+                          formatValue={(value) => formatMoney(value, currency, { compact: true })}
+                          empty="No withdrawals by asset"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                {withdrawalsMonthly.length > 0 ? (
+                  <div className="mt-4 border-t border-ink/5 pt-4 dark:border-white/5">
+                    <h4 className="text-sm font-semibold text-ink dark:text-white">By month</h4>
+                    <div className="mt-2">
+                      <AllocationList
+                        data={withdrawalsMonthly.map((item) => ({
+                          name: item.month,
+                          value: item.value,
+                        }))}
+                        formatValue={(value) => formatMoney(value, currency, { compact: true })}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </ChartCard>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -194,6 +277,8 @@ export function WealthPage() {
           <GoalFormFields
             name={name}
             setName={setName}
+            description={description}
+            setDescription={setDescription}
             target={target}
             setTarget={setTarget}
             targetDate={targetDate}

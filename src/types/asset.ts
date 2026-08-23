@@ -35,6 +35,7 @@ export const ASSET_SOURCE_LABELS: Record<AssetSource, string> = {
 
 export interface Asset {
   id: string
+  userId?: string
   goalId: string
   name: string
   category: AssetCategory
@@ -42,7 +43,11 @@ export interface Asset {
   investmentType: InvestmentType
   investedAmount: number
   currentValue: number
+  /** Cached withdrawal total. Also persisted as `withdrawnAmount`. */
   totalWithdrawals: number
+  netInvestedAmount?: number
+  gainAmount?: number
+  returnPercentage?: number
   expectedCagr?: number
   monthlyInvestment?: number
   plannedInvestmentDay?: number

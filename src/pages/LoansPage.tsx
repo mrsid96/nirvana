@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import {
   Input,
   Progress,
   SectionTitle,
+  Textarea,
 } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
 import { LoanCard } from '@/components/LoanCard'
@@ -28,7 +29,12 @@ import {
 } from '@/lib/calculations/loans'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney, formatPercent } from '@/lib/formatters/currency'
-import { toMinorUnits } from '@/lib/money'
+import {
+  parseAmountInput,
+  parseDayOfMonth,
+  parsePositiveInteger,
+  parseRatePercent,
+} from '@/lib/validation/parse'
 import type { Loan } from '@/types/loan'
 import { ChartCard, DonutChart } from '@/components/charts'
 
@@ -42,6 +48,8 @@ export function LoansPage() {
   const [tab, setTab] = useState<LoansTab>('loans')
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [purpose, setPurpose] = useState('')
   const [bank, setBank] = useState('')
   const [original, setOriginal] = useState('')
   const [outstanding, setOutstanding] = useState('')
@@ -84,18 +92,54 @@ export function LoansPage() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault()
+    if (!name.trim()) {
+      toast.error('Enter a loan name')
+      return
+    }
+    const originalParsed = parseAmountInput(original, currency)
+    if (!originalParsed.ok) {
+      toast.error(originalParsed.message)
+      return
+    }
+    const outstandingParsed = parseAmountInput(outstanding || original, currency, { allowZero: true })
+    if (!outstandingParsed.ok) {
+      toast.error(outstandingParsed.message)
+      return
+    }
+    const emiParsed = parseAmountInput(emi, currency)
+    if (!emiParsed.ok) {
+      toast.error(emiParsed.message)
+      return
+    }
+    const rateParsed = parseRatePercent(rate)
+    if (!rateParsed.ok) {
+      toast.error(rateParsed.message)
+      return
+    }
+    const tenureParsed = parsePositiveInteger(tenure, 'Tenure (months)', 600)
+    if (!tenureParsed.ok) {
+      toast.error(tenureParsed.message)
+      return
+    }
+    const emiDayParsed = parseDayOfMonth(emiDate)
+    if (!emiDayParsed.ok) {
+      toast.error(emiDayParsed.message)
+      return
+    }
     setBusy(true)
     try {
       await finance.addLoan({
         name,
+        description: description.trim() || undefined,
+        purpose: purpose.trim() || undefined,
         bank,
-        originalAmount: toMinorUnits(Number(original), currency),
-        outstandingAmount: toMinorUnits(Number(outstanding || original), currency),
-        interestRate: Number(rate),
-        tenureMonths: Number(tenure),
+        originalAmount: originalParsed.minor,
+        outstandingAmount: outstandingParsed.minor,
+        interestRate: rateParsed.rate,
+        tenureMonths: tenureParsed.value,
         startDate,
-        emiAmount: toMinorUnits(Number(emi), currency),
-        emiDate: Number(emiDate),
+        emiAmount: emiParsed.minor,
+        emiDate: emiDayParsed.day,
         deductionBank: bank,
         status: 'ACTIVE',
       })
@@ -225,6 +269,10 @@ export function LoansPage() {
           state={{
             name,
             setName,
+            description,
+            setDescription,
+            purpose,
+            setPurpose,
             bank,
             setBank,
             original,
@@ -253,10 +301,15 @@ export function LoanDetailPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const finance = useFinance()
+  const { ensureLoanDetail } = finance
   const currency = profile?.currency ?? 'INR'
   const loan = finance.loans.find((item) => item.id === loanId)
   const metrics = loan ? calculateLoanMetrics(loan, todayIsoDate()) : null
   useSetPageTitle(loan?.name ?? null)
+
+  useEffect(() => {
+    if (loanId) void ensureLoanDetail(loanId)
+  }, [ensureLoanDetail, loanId, finance.loading])
   const payments = useMemo(
     () =>
       finance.loanPayments
@@ -279,6 +332,8 @@ export function LoanDetailPage() {
   const [confirm, setConfirm] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [name, setName] = useState(loan?.name ?? '')
+  const [description, setDescription] = useState(loan?.description ?? '')
+  const [purpose, setPurpose] = useState(loan?.purpose ?? '')
   const [bank, setBank] = useState(loan?.bank ?? '')
   const [original, setOriginal] = useState('')
   const [outstanding, setOutstanding] = useState('')
@@ -306,6 +361,8 @@ export function LoanDetailPage() {
 
   function openEdit() {
     setName(currentLoan.name)
+    setDescription(currentLoan.description ?? '')
+    setPurpose(currentLoan.purpose ?? '')
     setBank(currentLoan.bank)
     setOriginal(String(currentLoan.originalAmount / 100))
     setOutstanding(String(currentLoan.outstandingAmount / 100))
@@ -319,18 +376,54 @@ export function LoanDetailPage() {
 
   async function onEdit(event: FormEvent) {
     event.preventDefault()
+    if (!name.trim()) {
+      toast.error('Enter a loan name')
+      return
+    }
+    const originalParsed = parseAmountInput(original, currency)
+    if (!originalParsed.ok) {
+      toast.error(originalParsed.message)
+      return
+    }
+    const outstandingParsed = parseAmountInput(outstanding || original, currency, { allowZero: true })
+    if (!outstandingParsed.ok) {
+      toast.error(outstandingParsed.message)
+      return
+    }
+    const emiParsed = parseAmountInput(emi, currency)
+    if (!emiParsed.ok) {
+      toast.error(emiParsed.message)
+      return
+    }
+    const rateParsed = parseRatePercent(rate)
+    if (!rateParsed.ok) {
+      toast.error(rateParsed.message)
+      return
+    }
+    const tenureParsed = parsePositiveInteger(tenure, 'Tenure (months)', 600)
+    if (!tenureParsed.ok) {
+      toast.error(tenureParsed.message)
+      return
+    }
+    const emiDayParsed = parseDayOfMonth(emiDate)
+    if (!emiDayParsed.ok) {
+      toast.error(emiDayParsed.message)
+      return
+    }
     setBusy(true)
     try {
       await finance.editLoan(currentLoan.id, {
         name,
+        description: description.trim() || undefined,
+        purpose: purpose.trim() || undefined,
         bank,
-        originalAmount: toMinorUnits(Number(original), currency),
-        outstandingAmount: toMinorUnits(Number(outstanding || original), currency),
-        interestRate: Number(rate),
-        tenureMonths: Number(tenure),
+        originalAmount: originalParsed.minor,
+        outstandingAmount: outstandingParsed.minor,
+        interestRate: rateParsed.rate,
+        tenureMonths: tenureParsed.value,
         startDate,
-        emiAmount: toMinorUnits(Number(emi), currency),
-        emiDate: Number(emiDate),
+        emiAmount: emiParsed.minor,
+        emiDate: emiDayParsed.day,
         deductionBank: bank,
       })
       toast.success('Loan updated')
@@ -344,11 +437,12 @@ export function LoanDetailPage() {
 
   async function onPay(event: FormEvent) {
     event.preventDefault()
-    const minor = toMinorUnits(Number(payAmount), currency)
-    if (!Number.isFinite(minor) || minor <= 0) {
-      toast.error('Enter a valid amount')
+    const parsed = parseAmountInput(payAmount, currency)
+    if (!parsed.ok) {
+      toast.error(parsed.message)
       return
     }
+    const minor = parsed.minor
     setBusy(true)
     try {
       await finance.addLoanPayment(
@@ -485,6 +579,10 @@ export function LoanDetailPage() {
             state={{
               name,
               setName,
+              description,
+              setDescription,
+              purpose,
+              setPurpose,
               bank,
               setBank,
               original,
@@ -548,6 +646,10 @@ export function LoanDetailPage() {
 interface LoanFormState {
   name: string
   setName: (value: string) => void
+  description: string
+  setDescription: (value: string) => void
+  purpose: string
+  setPurpose: (value: string) => void
   bank: string
   setBank: (value: string) => void
   original: string
@@ -574,6 +676,21 @@ function LoanFormFields({ state }: { state: LoanFormState }) {
           value={state.name}
           onChange={(event) => state.setName(event.target.value)}
           required
+        />
+      </Field>
+      <Field label="Description" hint="Optional">
+        <Textarea
+          value={state.description}
+          onChange={(event) => state.setDescription(event.target.value)}
+          rows={2}
+          placeholder="Notes about this loan"
+        />
+      </Field>
+      <Field label="Purpose" hint="Optional">
+        <Input
+          value={state.purpose}
+          onChange={(event) => state.setPurpose(event.target.value)}
+          placeholder="Home, car, education…"
         />
       </Field>
       <Field label="Bank">

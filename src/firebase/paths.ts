@@ -1,18 +1,35 @@
 export const paths = {
   user: (uid: string) => `users/${uid}`,
-  settings: (uid: string) => `users/${uid}/profile/settings`,
+  settings: (uid: string) => `users/${uid}/settings/app`,
+  legacySettings: (uid: string) => `users/${uid}/profile/settings`,
   goals: (uid: string) => `users/${uid}/goals`,
   goal: (uid: string, goalId: string) => `users/${uid}/goals/${goalId}`,
-  assets: (uid: string, goalId: string) => `users/${uid}/goals/${goalId}/assets`,
-  asset: (uid: string, goalId: string, assetId: string) =>
-    `users/${uid}/goals/${goalId}/assets/${assetId}`,
-  transactions: (uid: string, goalId: string, assetId: string) =>
-    `users/${uid}/goals/${goalId}/assets/${assetId}/transactions`,
-  transaction: (uid: string, goalId: string, assetId: string, txId: string) =>
-    `users/${uid}/goals/${goalId}/assets/${assetId}/transactions/${txId}`,
+  assets: (uid: string) => `users/${uid}/assets`,
+  asset: (uid: string, assetId: string) => `users/${uid}/assets/${assetId}`,
+  transactions: (uid: string) => `users/${uid}/transactions`,
+  transaction: (uid: string, txId: string) => `users/${uid}/transactions/${txId}`,
   loans: (uid: string) => `users/${uid}/loans`,
   loan: (uid: string, loanId: string) => `users/${uid}/loans/${loanId}`,
-  loanPayments: (uid: string, loanId: string) => `users/${uid}/loans/${loanId}/payments`,
+  loanPayments: (uid: string) => `users/${uid}/loanPayments`,
+  loanPayment: (uid: string, paymentId: string) => `users/${uid}/loanPayments/${paymentId}`,
   expenses: (uid: string) => `users/${uid}/expenses`,
+  expense: (uid: string, expenseId: string) => `users/${uid}/expenses/${expenseId}`,
   income: (uid: string) => `users/${uid}/income`,
+  incomeItem: (uid: string, incomeId: string) => `users/${uid}/income/${incomeId}`,
+  recurringRules: (uid: string) => `users/${uid}/recurringRules`,
+  recurringRule: (uid: string, id: string) => `users/${uid}/recurringRules/${id}`,
+  scheduledOccurrences: (uid: string) => `users/${uid}/scheduledOccurrences`,
+  scheduledOccurrence: (uid: string, id: string) => `users/${uid}/scheduledOccurrences/${id}`,
+  monthlySummaries: (uid: string) => `users/${uid}/monthlySummaries`,
+  monthlySummary: (uid: string, month: string) => `users/${uid}/monthlySummaries/${month}`,
+  /** Nested V1 paths — read-only during migration. Never write new data here. */
+  legacy: {
+    assets: (uid: string, goalId: string) => `users/${uid}/goals/${goalId}/assets`,
+    asset: (uid: string, goalId: string, assetId: string) =>
+      `users/${uid}/goals/${goalId}/assets/${assetId}`,
+    transactions: (uid: string, goalId: string, assetId: string) =>
+      `users/${uid}/goals/${goalId}/assets/${assetId}/transactions`,
+    loanPayments: (uid: string, loanId: string) => `users/${uid}/loans/${loanId}/payments`,
+    recurringActivities: (uid: string) => `users/${uid}/recurringActivities`,
+  },
 }

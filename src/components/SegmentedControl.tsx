@@ -8,7 +8,7 @@ export function SegmentedControl<T extends string>({
 }: {
   value: T
   onChange: (value: T) => void
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; badge?: number }[]
   className?: string
 }) {
   return (
@@ -33,7 +33,14 @@ export function SegmentedControl<T extends string>({
               : 'text-ink-muted',
           )}
         >
-          {option.label}
+          <span className="inline-flex items-center gap-1.5">
+            {option.label}
+            {option.badge != null && option.badge > 0 ? (
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {option.badge}
+              </span>
+            ) : null}
+          </span>
         </button>
       ))}
     </div>

@@ -2,12 +2,15 @@ export type LoanStatus = 'ACTIVE' | 'CLOSED'
 
 export interface Loan {
   id: string
+  userId?: string
   name: string
   description?: string
   purpose?: string
   bank: string
   originalAmount: number
   outstandingAmount: number
+  totalPaid?: number
+  progressPercentage?: number
   interestRate: number
   tenureMonths: number
   startDate: string
@@ -23,6 +26,7 @@ export interface Loan {
 
 export interface LoanPayment {
   id: string
+  userId?: string
   loanId: string
   amount: number
   principalAmount?: number
@@ -32,4 +36,5 @@ export interface LoanPayment {
   note?: string
   isDeleted: boolean
   createdAt: string
+  updatedAt?: string
 }

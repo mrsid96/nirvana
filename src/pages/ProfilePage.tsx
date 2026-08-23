@@ -4,7 +4,9 @@ import { toast } from 'sonner'
 import { Button, Card, Field, SectionTitle, Select } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
+import { clearAllFinanceData } from '@/dev/clearFinanceData'
 import { seedDemoData } from '@/dev/seedDemoData'
+import { migrateFirestoreV1, rebuildDerivedData } from '@/dev/firestoreMigration'
 import { COUNTRIES } from '@/lib/money'
 import type { SupportedCurrency, ThemeMode } from '@/types/user'
 
@@ -60,6 +62,63 @@ export function ProfilePage() {
       toast.success('Demo data loaded')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load demo data')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onClearAllData() {
+    if (!user?.uid) return
+    if (
+      !window.confirm(
+        'Delete ALL financial data (goals, assets, transactions, loans, expenses, income)? This cannot be undone.',
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await clearAllFinanceData(user.uid)
+      await finance.refresh()
+      toast.success(`Cleared ${result.cleared} records`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not clear data')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onRebuildDerived() {
+    if (!user?.uid) return
+    setBusy(true)
+    try {
+      const result = await rebuildDerivedData(user.uid, true)
+      await finance.refresh()
+      toast.success(
+        result.discrepancies.length === 0
+          ? 'Derived data reconciled — no discrepancies'
+          : `Repaired ${result.repairedCounts.assets} assets, ${result.repairedCounts.goals} goals`,
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Rebuild failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onRunMigration() {
+    if (!user?.uid) return
+    setBusy(true)
+    try {
+      const result = await migrateFirestoreV1(user.uid)
+      await finance.refresh()
+      if (result.success) {
+        toast.success(`Migration complete (schema v${result.schemaVersion})`)
+      } else {
+        toast.error(result.error ?? 'Migration failed')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Migration failed')
     } finally {
       setBusy(false)
     }
@@ -147,10 +206,26 @@ export function ProfilePage() {
           <Button variant="secondary" className="w-full" onClick={() => void onExport()}>
             Export my data
           </Button>
+          <Button
+            variant="ghost"
+            className="w-full text-peach"
+            disabled={busy}
+            onClick={() => void onClearAllData()}
+          >
+            Clear all financial data
+          </Button>
           {import.meta.env.DEV ? (
-            <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onSeedDemo()}>
-              Load demo data (dev only)
-            </Button>
+            <>
+              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onSeedDemo()}>
+                Load demo data (dev only)
+              </Button>
+              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRunMigration()}>
+                Run Firestore migration (dev only)
+              </Button>
+              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRebuildDerived()}>
+                Rebuild derived summaries (dev only)
+              </Button>
+            </>
           ) : null}
         </Card>
       </section>

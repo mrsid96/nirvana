@@ -8,3 +8,13 @@ export type { Expense, ExpenseCategory, PaymentSource } from './expense'
 export { EXPENSE_CATEGORIES, PAYMENT_SOURCES } from './expense'
 export type { Income, IncomeSource } from './income'
 export { INCOME_SOURCES } from './income'
+export type {
+  OccurrenceStatus,
+  RecurringActivity,
+  RecurringActivityStatus,
+  RecurringActivityType,
+  RecurringFrequency,
+  RecurringRule,
+  ScheduledOccurrence,
+} from './recurring'
+export type { MonthlySummary } from './monthlySummary'

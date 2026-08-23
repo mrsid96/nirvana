@@ -298,15 +298,18 @@ export function GoalProgressBars({
 export function WealthGrowthChart({
   data,
   formatValue,
+  showTarget = true,
 }: {
   data: { label: string; wealth: number; target: number }[]
   formatValue?: (value: number) => string
+  showTarget?: boolean
 }) {
   if (data.length === 0) {
     return (
       <div className="grid h-44 place-items-center text-sm text-stone-400">No projection data</div>
     )
   }
+  const hasTarget = showTarget && data.some((point) => point.target > 0)
   return (
     <div className="h-52 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -334,20 +337,22 @@ export function WealthGrowthChart({
           <Line
             type="monotone"
             dataKey="wealth"
-            name="Projected wealth"
+            name={hasTarget ? 'Projected wealth' : 'Wealth'}
             stroke="#0f766e"
             strokeWidth={2}
             dot={false}
           />
-          <Line
-            type="monotone"
-            dataKey="target"
-            name="Target path"
-            stroke="#94a3b8"
-            strokeWidth={2}
-            strokeDasharray="4 4"
-            dot={false}
-          />
+          {hasTarget ? (
+            <Line
+              type="monotone"
+              dataKey="target"
+              name="Target path"
+              stroke="#94a3b8"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              dot={false}
+            />
+          ) : null}
         </LineChart>
       </ResponsiveContainer>
     </div>

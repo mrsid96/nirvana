@@ -21,6 +21,7 @@ export type PaymentSource = (typeof PAYMENT_SOURCES)[number]
 
 export interface Expense {
   id: string
+  userId?: string
   amount: number
   category: ExpenseCategory
   description?: string

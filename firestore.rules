@@ -13,6 +13,16 @@ service cloud.firestore {
     function validDate(value) {
       return value is string && value.size() == 10;
     }
+    function validMonth(value) {
+      return value is string && value.size() == 7;
+    }
+    function ownerImmutable() {
+      return !('userId' in resource.data)
+        || request.resource.data.userId == resource.data.userId;
+    }
+    function ownerMatches(uid) {
+      return request.resource.data.userId == uid;
+    }
 
     match /users/{uid} {
       allow read: if isOwner(uid);
@@ -22,6 +32,14 @@ service cloud.firestore {
         && request.resource.data.displayName is string
         && request.resource.data.currency in ['INR', 'USD', 'EUR', 'GBP', 'SGD', 'AED'];
       allow delete: if false;
+
+      match /settings/{settingId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.currency in ['INR', 'USD', 'EUR', 'GBP', 'SGD', 'AED']
+          && request.resource.data.theme in ['light', 'dark', 'system'];
+        allow delete: if false;
+      }
 
       match /profile/settings {
         allow read: if isOwner(uid);
@@ -33,10 +51,15 @@ service cloud.firestore {
 
       match /goals/{goalId} {
         allow read: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
           && request.resource.data.name.size() <= 80
+          && validMoney(request.resource.data.targetAmount);
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && request.resource.data.name is string
           && validMoney(request.resource.data.targetAmount);
         allow delete: if isOwner(uid);
 
@@ -59,9 +82,49 @@ service cloud.firestore {
         }
       }
 
+      match /assets/{assetId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && request.resource.data.name is string
+          && validMoney(request.resource.data.currentValue)
+          && validMoney(request.resource.data.investedAmount)
+          && request.resource.data.goalId is string;
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && request.resource.data.name is string
+          && validMoney(request.resource.data.currentValue)
+          && validMoney(request.resource.data.investedAmount);
+        allow delete: if isOwner(uid);
+      }
+
+      match /transactions/{txId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && request.resource.data.type in ['INVESTMENT', 'WITHDRAWAL', 'VALUE_UPDATE']
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date)
+          && validMonth(request.resource.data.month)
+          && request.resource.data.assetId is string
+          && request.resource.data.goalId is string;
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && request.resource.data.type in ['INVESTMENT', 'WITHDRAWAL', 'VALUE_UPDATE']
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date);
+        allow delete: if isOwner(uid);
+      }
+
       match /loans/{loanId} {
         allow read: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && request.resource.data.name is string
+          && validMoney(request.resource.data.originalAmount)
+          && validMoney(request.resource.data.outstandingAmount);
+        allow update: if isOwner(uid)
+          && ownerImmutable()
           && request.resource.data.name is string
           && validMoney(request.resource.data.originalAmount)
           && validMoney(request.resource.data.outstandingAmount);
@@ -76,9 +139,30 @@ service cloud.firestore {
         }
       }
 
+      match /loanPayments/{paymentId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date)
+          && validMonth(request.resource.data.month)
+          && request.resource.data.loanId is string;
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date);
+        allow delete: if isOwner(uid);
+      }
+
       match /expenses/{expenseId} {
         allow read: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date)
+          && validMonth(request.resource.data.month);
+        allow update: if isOwner(uid)
+          && ownerImmutable()
           && validMoney(request.resource.data.amount)
           && validDate(request.resource.data.date);
         allow delete: if isOwner(uid);
@@ -86,10 +170,67 @@ service cloud.firestore {
 
       match /income/{incomeId} {
         allow read: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.date)
+          && validMonth(request.resource.data.month);
+        allow update: if isOwner(uid)
+          && ownerImmutable()
           && validMoney(request.resource.data.amount)
           && validDate(request.resource.data.date);
         allow delete: if isOwner(uid);
+      }
+
+      match /recurringRules/{ruleId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && request.resource.data.name is string
+          && request.resource.data.type in ['INVESTMENT', 'LOAN_PAYMENT', 'INCOME', 'EXPENSE']
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.startDate);
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && request.resource.data.name is string
+          && validMoney(request.resource.data.amount);
+        allow delete: if isOwner(uid);
+      }
+
+      match /recurringActivities/{activityId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.name is string
+          && request.resource.data.type in ['INVESTMENT', 'LOAN_PAYMENT', 'INCOME', 'EXPENSE']
+          && validMoney(request.resource.data.amount)
+          && validDate(request.resource.data.startDate);
+        allow delete: if isOwner(uid);
+      }
+
+      match /scheduledOccurrences/{occurrenceId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && ownerMatches(uid)
+          && validMoney(request.resource.data.expectedAmount)
+          && validDate(request.resource.data.scheduledDate)
+          && request.resource.data.status in ['UPCOMING', 'DUE', 'OVERDUE', 'RECORDED', 'SKIPPED'];
+        allow update: if isOwner(uid)
+          && ownerImmutable()
+          && validMoney(request.resource.data.expectedAmount)
+          && validDate(request.resource.data.scheduledDate)
+          && request.resource.data.status in ['UPCOMING', 'DUE', 'OVERDUE', 'RECORDED', 'SKIPPED'];
+        allow delete: if isOwner(uid);
+      }
+
+      match /monthlySummaries/{monthId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && validMoney(request.resource.data.income)
+          && validMoney(request.resource.data.expenses)
+          && validMoney(request.resource.data.investments)
+          && validMoney(request.resource.data.withdrawals)
+          && validMoney(request.resource.data.loanPayments);
+        allow delete: if false;
       }
     }
   }
