@@ -1,5 +1,5 @@
-/** Bottom-tab routes — the four primary screens in the app shell. */
-export const MAIN_TAB_ROUTES = ['/', '/wealth', '/loans', '/profile'] as const
+/** Bottom-tab routes — the primary screens in the app shell. */
+export const MAIN_TAB_ROUTES = ['/', '/wealth', '/loans', '/statements'] as const
 
 export type MainTabRoute = (typeof MAIN_TAB_ROUTES)[number]
 

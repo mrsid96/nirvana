@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Trash2, TrendingUp } from 'lucide-react'
-import { toast } from 'sonner'
-import { Card, ConfirmBar, HeroCard, SectionTitle } from '@/components/ui'
+import { TrendingUp } from 'lucide-react'
+import { Card, EmptyState, HeroCard } from '@/components/ui'
 import { HealthCard } from '@/components/HealthCard'
 import { MilestoneBanner, useMilestones } from '@/components/MilestoneBanner'
 import { MoneyFlow, SummaryGrid } from '@/components/MoneyFlow'
+import { ProfileAvatar } from '@/components/ProfileAvatar'
+import { SegmentedControl } from '@/components/SegmentedControl'
 import { DashboardSkeleton } from '@/components/Skeleton'
 import { ChartCard, DonutChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,15 +14,7 @@ import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
 import { calculateFinancialHealth } from '@/lib/calculations/financialHealth'
 import { weightedGoalProgress } from '@/lib/calculations/goals'
 import { loanBurdenRatio, totalMonthlyEmi, totalOutstanding } from '@/lib/calculations/loans'
-import {
-  currentMonthKey,
-  formatDisplayDate,
-  formatMonthLabel,
-  greetingForNow,
-  monthKeyFromDate,
-  shiftMonth,
-  todayIsoDate,
-} from '@/lib/formatters/dates'
+import { currentMonthKey, formatMonthLabel, greetingForNow, todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import { firstName } from '@/lib/utils'
 import { ASSET_CATEGORY_LABELS } from '@/types/asset'
@@ -41,13 +34,14 @@ function healthMessage(overall: string) {
   return 'Small improvements this month can make a big difference.'
 }
 
+type HomeTab = 'month' | 'notifications'
+
 export function DashboardPage() {
-  const { profile, settings, saveSettings } = useAuth()
+  const { profile } = useAuth()
   const finance = useFinance()
-  const [deletingExpense, setDeletingExpense] = useState<string | null>(null)
-  const [deletingIncome, setDeletingIncome] = useState<string | null>(null)
+  const [tab, setTab] = useState<HomeTab>('month')
   const currency = profile?.currency ?? 'INR'
-  const month = settings?.dashboardMonth ?? currentMonthKey()
+  const month = currentMonthKey()
   const asOf = todayIsoDate()
 
   const cashflow = useMemo(
@@ -89,22 +83,6 @@ export function DashboardPage() {
     wealthGoalProgress: goalProgress,
   })
 
-  const monthExpenses = useMemo(
-    () =>
-      finance.expenses
-        .filter((item) => item.month === month || monthKeyFromDate(item.date) === month)
-        .sort((a, b) => b.date.localeCompare(a.date)),
-    [finance.expenses, month],
-  )
-
-  const monthIncome = useMemo(
-    () =>
-      finance.income
-        .filter((item) => item.month === month || monthKeyFromDate(item.date) === month)
-        .sort((a, b) => b.date.localeCompare(a.date)),
-    [finance.income, month],
-  )
-
   const name = firstName(profile?.displayName)
   const milestones = useMilestones(currency as SupportedCurrency)
 
@@ -113,18 +91,19 @@ export function DashboardPage() {
   return (
     <div className="space-y-7">
       <MilestoneBanner milestones={milestones} />
-      {/* Greeting */}
-      <header className="pt-1">
-        <p className="text-sm font-medium text-ink-muted">
-          {greetingForNow()}, {name} 👋
-        </p>
-        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight text-ink dark:text-white lg:text-[32px]">
-          You&apos;re building a stronger{' '}
-          <span className="font-serif font-medium text-accent">financial future</span>.
-        </h1>
+      <header className="flex items-start justify-between gap-4 pt-1">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-ink-muted">
+            {greetingForNow()}, {name} 👋
+          </p>
+          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight text-ink dark:text-white lg:text-[32px]">
+            You&apos;re building a stronger{' '}
+            <span className="font-serif font-medium text-accent">financial future</span>.
+          </h1>
+        </div>
+        <ProfileAvatar className="mt-1" />
       </header>
 
-      {/* Wealth overview — net worth left, allocation right on desktop */}
       <section
         className={
           allocation.length > 0
@@ -174,165 +153,56 @@ export function DashboardPage() {
         ) : null}
       </section>
 
-      {/* This month */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <SectionTitle title="This month" />
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="flex min-h-9 min-w-9 items-center justify-center rounded-full text-ink-muted active:bg-ink/5"
-              onClick={() => void saveSettings({ dashboardMonth: shiftMonth(month, -1) })}
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="min-w-[7rem] text-center text-sm font-semibold text-ink dark:text-white">
-              {formatMonthLabel(month)}
-            </span>
-            <button
-              type="button"
-              className="flex min-h-9 min-w-9 items-center justify-center rounded-full text-ink-muted active:bg-ink/5"
-              onClick={() => void saveSettings({ dashboardMonth: shiftMonth(month, 1) })}
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+      <SegmentedControl
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'month', label: 'This month' },
+          { value: 'notifications', label: 'Notifications' },
+        ]}
+      />
 
-        <SummaryGrid
-          currency={currency}
-          items={[
-            { label: 'Income', value: cashflow.income, tint: 'mint' },
-            { label: 'Spending', value: cashflow.expenses, tint: 'peach' },
-            { label: 'Investing', value: cashflow.investments, tint: 'accent' },
-            { label: 'Loans', value: cashflow.loanPayments, tint: 'sky' },
-          ]}
-        />
-
-        <Card variant="flat">
-          <MoneyFlow
-            income={cashflow.income}
-            remaining={cashflow.freeCashFlow}
+      {tab === 'month' ? (
+        <section className="space-y-4">
+          <p className="text-sm text-ink-muted">{formatMonthLabel(month)}</p>
+          <SummaryGrid
             currency={currency}
             items={[
-              { label: 'Spend', value: cashflow.expenses, color: '#FF9B7A' },
-              { label: 'Invest', value: cashflow.investments, color: '#6657E8' },
-              { label: 'Loans', value: cashflow.loanPayments, color: '#6BB8E8' },
+              { label: 'Income', value: cashflow.income, tint: 'mint' },
+              { label: 'Spending', value: cashflow.expenses, tint: 'peach' },
+              { label: 'Investing', value: cashflow.investments, tint: 'accent' },
+              { label: 'Loans', value: cashflow.loanPayments, tint: 'sky' },
             ]}
           />
-        </Card>
-      </section>
-
-      {/* Recent activity */}
-      {(monthIncome.length > 0 || monthExpenses.length > 0) && (
-        <section className="space-y-3">
-          <SectionTitle title="Recent activity" subtitle="This month's entries" />
-          <div className="space-y-2">
-            {monthIncome.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-[16px] bg-surface px-4 py-3 shadow-[var(--shadow-soft)] dark:bg-surface-dark"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink dark:text-white">{item.source}</p>
-                  <p className="text-xs text-ink-muted">
-                    {formatDisplayDate(item.date)}
-                    {item.description ? ` · ${item.description}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-display text-sm font-semibold text-success">
-                    +{formatMoney(item.amount, currency, { compact: true })}
-                  </span>
-                  <button
-                    type="button"
-                    className="min-h-9 min-w-9 rounded-full text-ink-faint active:bg-ink/5"
-                    aria-label="Delete income"
-                    onClick={() => setDeletingIncome(item.id)}
-                  >
-                    <Trash2 className="mx-auto h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {monthExpenses.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-[16px] bg-surface px-4 py-3 shadow-[var(--shadow-soft)] dark:bg-surface-dark"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink dark:text-white">{item.category}</p>
-                  <p className="text-xs text-ink-muted">
-                    {formatDisplayDate(item.date)}
-                    {item.description ? ` · ${item.description}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-display text-sm font-semibold text-ink dark:text-white">
-                    {formatMoney(item.amount, currency, { compact: true })}
-                  </span>
-                  <button
-                    type="button"
-                    className="min-h-9 min-w-9 rounded-full text-ink-faint active:bg-ink/5"
-                    aria-label="Delete expense"
-                    onClick={() => setDeletingExpense(item.id)}
-                  >
-                    <Trash2 className="mx-auto h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Card variant="flat">
+            <MoneyFlow
+              income={cashflow.income}
+              remaining={cashflow.freeCashFlow}
+              currency={currency}
+              items={[
+                { label: 'Spend', value: cashflow.expenses, color: '#FF9B7A' },
+                { label: 'Invest', value: cashflow.investments, color: '#6657E8' },
+                { label: 'Loans', value: cashflow.loanPayments, color: '#6BB8E8' },
+              ]}
+            />
+          </Card>
+          <HealthCard
+            health={{
+              ...health,
+              loanBurden: loanBurdenRatio(emi, cashflow.income),
+            }}
+            message={healthMessage(health.overallLabel)}
+          />
         </section>
-      )}
+      ) : null}
 
-      <HealthCard
-        health={{
-          ...health,
-          loanBurden: loanBurdenRatio(emi, cashflow.income),
-        }}
-        message={healthMessage(health.overallLabel)}
-      />
-
-      <ConfirmBar
-        open={deletingExpense !== null}
-        title="Delete expense?"
-        body="This will remove the expense from your monthly cash flow."
-        onCancel={() => setDeletingExpense(null)}
-        onConfirm={() => {
-          if (!deletingExpense) return
-          void finance
-            .removeExpense(deletingExpense)
-            .then(() => {
-              toast.success('Expense removed')
-              setDeletingExpense(null)
-            })
-            .catch((error) => {
-              toast.error(error instanceof Error ? error.message : 'Could not delete')
-            })
-        }}
-      />
-
-      <ConfirmBar
-        open={deletingIncome !== null}
-        title="Delete income?"
-        body="This will remove the income from your monthly cash flow."
-        onCancel={() => setDeletingIncome(null)}
-        onConfirm={() => {
-          if (!deletingIncome) return
-          void finance
-            .removeIncome(deletingIncome)
-            .then(() => {
-              toast.success('Income removed')
-              setDeletingIncome(null)
-            })
-            .catch((error) => {
-              toast.error(error instanceof Error ? error.message : 'Could not delete')
-            })
-        }}
-      />
+      {tab === 'notifications' ? (
+        <EmptyState
+          emoji="🔔"
+          title="No notifications yet"
+          body="Milestones, reminders, and insights will appear here soon."
+        />
+      ) : null}
     </div>
   )
 }

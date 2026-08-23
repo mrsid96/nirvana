@@ -29,6 +29,9 @@ const OnboardingPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@/pages/ProfilePage').then((mod) => ({ default: mod.ProfilePage })),
 )
+const StatementsPage = lazy(() =>
+  import('@/pages/StatementsPage').then((mod) => ({ default: mod.StatementsPage })),
+)
 const WealthPage = lazy(() =>
   import('@/pages/WealthPage').then((mod) => ({ default: mod.WealthPage })),
 )
@@ -149,6 +152,7 @@ export default function App() {
                     <Route path="wealth/:goalId" element={<GoalDetailPage />} />
                     <Route path="loans" element={<LoansPage />} />
                     <Route path="loans/:loanId" element={<LoanDetailPage />} />
+                    <Route path="statements" element={<StatementsPage />} />
                     <Route path="profile" element={<ProfilePage />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
