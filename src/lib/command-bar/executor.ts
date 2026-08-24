@@ -155,14 +155,15 @@ export async function executeConfirmedIntent(
 
     case 'CREATE_GOAL':
       if (!intent.amount) throw new Error('Target amount is required')
-      const goalName = intent.goalName ?? 'New goal'
+      const goalName = intent.goalName?.trim() || 'New goal'
+      if (!goalName) throw new Error('Goal name is required')
       await finance.addGoal({
         name: goalName,
         description: intent.description,
         targetAmount: intent.amount,
         startDate: today,
         targetDate: intent.targetDate ?? addMonthsIso(today, 240),
-        priority: 'medium',
+        priority: intent.priority ?? 'medium',
         status: 'active',
       })
       break
@@ -170,38 +171,50 @@ export async function executeConfirmedIntent(
     case 'CREATE_ASSET':
       if (!intent.amount) throw new Error('Amount is required')
       if (!intent.goalId) throw new Error('Choose a goal first')
-      const assetName = intent.assetName ?? 'New asset'
-      const category = inferAssetCategory(assetName)
+      const assetName = intent.assetName?.trim() || 'New asset'
+      const category =
+        (intent.assetCategory as AssetCategory) ?? inferAssetCategory(assetName)
       const source = mapAssetSource(intent.source)
+      const investmentType = intent.investmentType ?? (intent.monthlyInvestment ? 'SIP' : 'LUMP_SUM')
       await finance.addAsset({
         goalId: intent.goalId,
         name: assetName,
         category,
         source,
-        investmentType: intent.frequency ? 'SIP' : 'LUMP_SUM',
+        investmentType,
         investedAmount: intent.amount,
         currentValue: intent.amount,
         totalWithdrawals: 0,
-        monthlyInvestment: intent.frequency ? intent.amount : undefined,
-        plannedInvestmentDay: intent.frequency ? intent.dayOfMonth ?? 1 : undefined,
+        expectedCagr: intent.expectedCagr,
+        monthlyInvestment:
+          investmentType === 'SIP' || investmentType === 'BOTH'
+            ? intent.monthlyInvestment ?? intent.amount
+            : undefined,
+        plannedInvestmentDay:
+          investmentType === 'SIP' || investmentType === 'BOTH'
+            ? intent.dayOfMonth ?? 1
+            : undefined,
         isActive: true,
       })
       break
 
     case 'CREATE_LOAN':
-      if (!intent.amount) throw new Error('Amount is required')
-      const loanName = intent.loanName ?? 'New loan'
-      const bank = intent.source ?? 'Bank'
+      const original = intent.originalAmount ?? intent.amount
+      if (!original) throw new Error('Loan amount is required')
+      const loanName = intent.loanName?.trim() || 'New loan'
+      const bank = intent.bank ?? intent.source ?? 'Bank'
+      const emi = intent.emiAmount ?? intent.amount ?? original
       await finance.addLoan({
         name: loanName,
         description: intent.description,
+        purpose: intent.purpose,
         bank,
-        originalAmount: intent.amount,
-        outstandingAmount: intent.amount,
-        interestRate: 8,
-        tenureMonths: 240,
-        startDate: today,
-        emiAmount: intent.amount,
+        originalAmount: original,
+        outstandingAmount: intent.outstandingAmount ?? original,
+        interestRate: intent.interestRate ?? 8,
+        tenureMonths: intent.tenureMonths ?? 240,
+        startDate: intent.startDate ?? intent.date ?? today,
+        emiAmount: emi,
         emiDate: intent.dayOfMonth ?? 5,
         deductionBank: bank,
         status: 'ACTIVE',

@@ -104,6 +104,39 @@ describe('executeConfirmedIntent', () => {
     )
   })
 
+  it('creates a loan with rich fields', async () => {
+    const finance = mockFinance()
+    await executeConfirmedIntent(
+      {
+        intent: 'CREATE_LOAN',
+        confidence: 1,
+        loanName: 'Home Loan',
+        bank: 'HDFC',
+        originalAmount: 50000000,
+        outstandingAmount: 45000000,
+        emiAmount: 4500000,
+        interestRate: 8.5,
+        tenureMonths: 180,
+        dayOfMonth: 10,
+        startDate: '2024-01-15',
+      },
+      finance,
+    )
+    expect(finance.addLoan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Home Loan',
+        bank: 'HDFC',
+        originalAmount: 50000000,
+        outstandingAmount: 45000000,
+        emiAmount: 4500000,
+        interestRate: 8.5,
+        tenureMonths: 180,
+        emiDate: 10,
+        startDate: '2024-01-15',
+      }),
+    )
+  })
+
   it('skips scheduled occurrence', async () => {
     const occurrence: ScheduledOccurrence = {
       id: 'occ1',

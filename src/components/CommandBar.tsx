@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, Pencil, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Check, Mic, Pencil, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { CommandBarCreateForm } from '@/components/CommandBarCreateForm'
 import { CommandBarEditForm } from '@/components/CommandBarEditForm'
 import { Button, Card, Input, Pill } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceContext'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
 import { totalOutstanding } from '@/lib/calculations/loans'
 import {
@@ -17,6 +19,7 @@ import { executeConfirmedIntent } from '@/lib/command-bar/executor'
 import {
   CONTEXT_PLACEHOLDERS,
   INTENT_LABELS,
+  isCreateIntent,
   isNavigationIntent,
   isQueryIntent,
   PLACEHOLDER_EXAMPLES,
@@ -27,6 +30,8 @@ import {
   resolvePhaseAfterClarification,
 } from '@/lib/command-bar/parser'
 import { resolveQuery } from '@/lib/command-bar/queries'
+import { validateCreateIntent } from '@/lib/command-bar/validateCreate'
+import { speechLocaleForCurrency } from '@/lib/speech/speechRecognition'
 import type {
   ClarificationOption,
   FinanceSnapshot,
@@ -149,11 +154,21 @@ export function CommandBar({
 
   const closedPlaceholder = CONTEXT_PLACEHOLDERS[contextKey] ?? CONTEXT_PLACEHOLDERS.home
 
+  const speech = useSpeechRecognition({
+    lang: speechLocaleForCurrency(currency),
+    onFinalTranscript: (transcript) => {
+      setText(transcript)
+      processInput(transcript)
+    },
+    onError: (message) => toast.error(message),
+  })
+
   useEffect(() => {
     void ensureRecurringActivities()
   }, [ensureRecurringActivities])
 
   useEffect(() => {
+    if (barState !== 'idle') return
     const timer = window.setInterval(() => {
       setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_EXAMPLES.length)
     }, 4000)
@@ -165,6 +180,7 @@ export function CommandBar({
   }, [barState])
 
   const reset = useCallback(() => {
+    speech.stop()
     setBarState('idle')
     setText('')
     setParseResult(null)
@@ -173,7 +189,7 @@ export function CommandBar({
     setEditAmount('')
     setBusy(false)
     setConfirmError(null)
-  }, [])
+  }, [speech.stop])
 
   function openInput() {
     setBarState('input')
@@ -292,6 +308,12 @@ export function CommandBar({
       return
     }
 
+    const createError = validateCreateIntent(structured)
+    if (createError) {
+      toast.error(createError)
+      return
+    }
+
     setBusy(true)
     setConfirmError(null)
     try {
@@ -327,30 +349,56 @@ export function CommandBar({
     setConfirmError(null)
   }
 
+  function startVoiceInput() {
+    if (!speech.supported) {
+      toast.error('Voice input is not supported on this device')
+      return
+    }
+    if (barState === 'idle') {
+      setBarState('input')
+      setParseResult(null)
+      setConfirmError(null)
+    }
+    speech.start()
+  }
+
   const rotatingExample = PLACEHOLDER_EXAMPLES[placeholderIndex]
 
   if (barState === 'idle') {
     return (
-      <button
-        type="button"
-        onClick={openInput}
-        className="group w-full rounded-[20px] border border-accent/15 bg-gradient-to-r from-accent/8 via-accent/5 to-transparent p-4 text-left shadow-[var(--shadow-soft)] transition-all hover:border-accent/25 hover:from-accent/12 dark:border-accent/20 dark:from-accent/15"
-        aria-label="Tell Nirvana what happened with your money"
-      >
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-ink dark:text-white">{closedPlaceholder}</p>
-            <p className="mt-0.5 truncate text-xs text-ink-faint transition-opacity duration-500">
-              e.g. {rotatingExample}
-            </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={openInput}
+          data-testid="command-bar-open"
+          className="group flex-1 rounded-[20px] border border-accent/15 bg-gradient-to-r from-accent/8 via-accent/5 to-transparent p-4 text-left shadow-[var(--shadow-soft)] transition-all hover:border-accent/25 hover:from-accent/12 dark:border-accent/20 dark:from-accent/15"
+          aria-label="Tell Nirvana what happened with your money"
+        >
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink dark:text-white">{closedPlaceholder}</p>
+              <p className="mt-0.5 truncate text-xs text-ink-faint transition-opacity duration-500">
+                e.g. {rotatingExample}
+              </p>
+            </div>
+            <ArrowRight
+              className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
           </div>
-          <ArrowRight
-            className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5"
-            aria-hidden
-          />
-        </div>
-      </button>
+        </button>
+        {speech.supported ? (
+          <button
+            type="button"
+            onClick={startVoiceInput}
+            className="flex h-[72px] w-14 shrink-0 items-center justify-center rounded-[20px] border border-accent/15 bg-accent/10 text-accent shadow-[var(--shadow-soft)] transition hover:bg-accent/15 dark:border-accent/20"
+            aria-label="Speak a money command"
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        ) : null}
+      </div>
     )
   }
 
@@ -375,14 +423,36 @@ export function CommandBar({
             <textarea
               id="command-bar-input"
               ref={textareaRef}
-              value={text}
+              value={
+                speech.listening && speech.interimTranscript
+                  ? `${text} ${speech.interimTranscript}`.trim()
+                  : text
+              }
               onChange={(e) => setText(e.target.value)}
               placeholder={rotatingExample}
               rows={2}
               className="w-full resize-none rounded-[14px] border border-ink/8 bg-surface px-3.5 py-3 text-base text-ink outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/20 dark:border-white/10 dark:bg-surface-dark dark:text-white"
               aria-label="Natural language money command"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2">
+              {speech.supported ? (
+                <button
+                  type="button"
+                  onClick={() => (speech.listening ? speech.stop() : speech.start())}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-[14px] px-3 text-sm font-medium transition ${
+                    speech.listening
+                      ? 'animate-pulse bg-danger/15 text-danger'
+                      : 'bg-accent/10 text-accent hover:bg-accent/15'
+                  }`}
+                  aria-label={speech.listening ? 'Stop listening' : 'Start voice input'}
+                  aria-pressed={speech.listening}
+                >
+                  <Mic className="h-4 w-4" />
+                  {speech.listening ? 'Listening…' : 'Voice'}
+                </button>
+              ) : (
+                <span />
+              )}
               <Button type="submit" size="default" disabled={!text.trim()} aria-label="Submit command">
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -429,6 +499,9 @@ export function CommandBar({
               setConfirmError(null)
             }}
             onClose={reset}
+            onStructuredChange={(structured) =>
+              setParseResult((prev) => (prev ? { ...prev, structured } : null))
+            }
           />
         ) : null}
       </div>
@@ -457,6 +530,7 @@ function ResultPanel({
   onMissingAmount,
   onRetry,
   onClose,
+  onStructuredChange,
 }: {
   result: ParseResult
   currency: SupportedCurrency
@@ -478,6 +552,7 @@ function ResultPanel({
   onMissingAmount: (minor: number) => void
   onRetry: () => void
   onClose: () => void
+  onStructuredChange: (structured: StructuredIntent) => void
 }) {
   const { structured, phase, clarification } = result
 
@@ -555,6 +630,20 @@ function ResultPanel({
         <p className="font-display text-2xl font-semibold text-ink dark:text-white">{qr.value}</p>
         {qr.subtitle ? <p className="text-sm text-ink-muted">{qr.subtitle}</p> : null}
       </div>
+    )
+  }
+
+  if (phase === 'needs_confirmation' && isCreateIntent(structured.intent)) {
+    return (
+      <CommandBarCreateForm
+        structured={structured}
+        goals={goals}
+        onChange={onStructuredChange}
+        onConfirm={onConfirm}
+        onCancel={onClose}
+        busy={busy}
+        confirmError={confirmError}
+      />
     )
   }
 

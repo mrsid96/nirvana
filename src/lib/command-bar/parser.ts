@@ -251,6 +251,11 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
   if (intent === 'CREATE_LOAN') {
     structured.loanName =
       structured.loanName ?? extractLoanHint(text) ?? structured.description ?? 'New loan'
+    if (amount) {
+      structured.originalAmount = amount
+      structured.outstandingAmount = amount
+      structured.emiAmount = amount
+    }
     if (!amount) {
       return buildResult(text, structured, 'needs_clarification', start, {
         kind: 'missing_amount',

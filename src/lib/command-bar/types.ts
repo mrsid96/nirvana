@@ -84,6 +84,19 @@ export interface StructuredIntent {
   scheduledOccurrenceId?: string
   scheduledOccurrenceName?: string
   targetDate?: string
+  priority?: 'low' | 'medium' | 'high'
+  assetCategory?: string
+  investmentType?: 'SIP' | 'LUMP_SUM' | 'BOTH'
+  monthlyInvestment?: number
+  expectedCagr?: number
+  bank?: string
+  purpose?: string
+  originalAmount?: number
+  outstandingAmount?: number
+  emiAmount?: number
+  interestRate?: number
+  tenureMonths?: number
+  startDate?: string
 }
 
 export interface ScheduledOccurrenceRef {

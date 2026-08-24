@@ -89,3 +89,11 @@ export const EDITABLE_WRITE_INTENTS = [
 ] as const
 
 export type EditableWriteIntent = (typeof EDITABLE_WRITE_INTENTS)[number]
+
+export const CREATE_INTENTS = ['CREATE_GOAL', 'CREATE_ASSET', 'CREATE_LOAN'] as const
+
+export type CreateIntent = (typeof CREATE_INTENTS)[number]
+
+export function isCreateIntent(intent: CommandIntent): boolean {
+  return CREATE_INTENTS.includes(intent as CreateIntent)
+}
