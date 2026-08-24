@@ -20,6 +20,7 @@ function TabLink({
     <NavLink
       to={item.to}
       end={item.to === '/'}
+      data-tour={'tourId' in item ? item.tourId : undefined}
       className={cn(
         'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-[16px] py-2 text-[10px] font-semibold transition-all duration-200 active:scale-95',
         active ? 'text-accent' : 'text-ink-muted',
@@ -107,6 +108,7 @@ export function FabMenu({ expanded, onToggle }: { expanded: boolean; onToggle: (
           <button
             type="button"
             onClick={onToggle}
+            data-tour="fab"
             aria-label={expanded ? 'Close actions' : 'Quick actions'}
             aria-expanded={expanded}
             className={cn(

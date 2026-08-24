@@ -8,7 +8,7 @@ export function SegmentedControl<T extends string>({
 }: {
   value: T
   onChange: (value: T) => void
-  options: { value: T; label: string; badge?: number }[]
+  options: { value: T; label: string; badge?: number; tourId?: string }[]
   className?: string
 }) {
   return (
@@ -24,6 +24,7 @@ export function SegmentedControl<T extends string>({
           key={option.value}
           type="button"
           role="tab"
+          data-tour={option.tourId}
           aria-selected={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(

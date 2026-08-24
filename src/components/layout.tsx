@@ -69,6 +69,7 @@ function DesktopSidebar() {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            data-tour={'tourId' in item ? item.tourId : undefined}
             className={({ isActive }) =>
               cn(
                 'flex min-h-11 items-center gap-3 rounded-[14px] px-3 text-sm font-medium transition-colors',
@@ -91,6 +92,7 @@ function DesktopSidebar() {
           <button
             key={action.key}
             type="button"
+            data-tour={action.key === 'expense' ? 'fab' : undefined}
             onClick={() => setOpen(action.key)}
             className="flex min-h-10 w-full items-center gap-3 rounded-[14px] px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-ink/5 dark:hover:bg-white/5"
           >

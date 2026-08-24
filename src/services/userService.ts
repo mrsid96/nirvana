@@ -2,6 +2,7 @@ import type { User } from 'firebase/auth'
 import { paths } from '@/firebase/paths'
 import { getDocument, nowIso, stamp, toIso, upsert, patch, touch } from '@/firebase/firestore'
 import { currentMonthKey } from '@/lib/formatters/dates'
+import { CURRENT_ONBOARDING_VERSION } from '@/lib/app-tour'
 import type { UserProfile, UserSettings, SupportedCurrency, ThemeMode } from '@/types/user'
 
 function mapProfile(raw: Record<string, unknown>, uid: string, fallback?: User): UserProfile {
@@ -13,6 +14,11 @@ function mapProfile(raw: Record<string, unknown>, uid: string, fallback?: User):
     country: String(raw.country ?? 'IN'),
     currency: (raw.currency as SupportedCurrency) ?? 'INR',
     onboardingComplete: Boolean(raw.onboardingComplete),
+    hasCompletedOnboarding:
+      raw.hasCompletedOnboarding == null ? undefined : Boolean(raw.hasCompletedOnboarding),
+    onboardingVersion: raw.onboardingVersion == null ? undefined : Number(raw.onboardingVersion),
+    onboardingCompletedAt:
+      raw.onboardingCompletedAt == null ? undefined : toIso(raw.onboardingCompletedAt),
     schemaVersion: raw.schemaVersion == null ? undefined : Number(raw.schemaVersion),
     createdAt: toIso(raw.createdAt),
     updatedAt: toIso(raw.updatedAt),
@@ -73,6 +79,8 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     country: 'IN',
     currency: 'INR',
     onboardingComplete: false,
+    hasCompletedOnboarding: false,
+    onboardingVersion: 0,
     schemaVersion: 1,
     ...stamp(),
   })
@@ -91,6 +99,8 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     country: 'IN',
     currency: 'INR',
     onboardingComplete: false,
+    hasCompletedOnboarding: false,
+    onboardingVersion: 0,
     schemaVersion: 1,
     createdAt,
     updatedAt: createdAt,
@@ -126,4 +136,14 @@ export async function completeOnboarding(
     ...touch(),
   })
   await updateSettings(uid, data)
+}
+
+export async function completeAppTour(uid: string): Promise<void> {
+  const completedAt = nowIso()
+  await patch(paths.user(uid), {
+    hasCompletedOnboarding: true,
+    onboardingVersion: CURRENT_ONBOARDING_VERSION,
+    onboardingCompletedAt: completedAt,
+    ...touch(),
+  })
 }
