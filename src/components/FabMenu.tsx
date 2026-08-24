@@ -61,40 +61,45 @@ export function FabMenu({ expanded, onToggle }: { expanded: boolean; onToggle: (
         />
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
-        <div
-          className={cn(
-            'mx-auto mb-3 max-w-[390px] transition-all duration-200',
-            expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none translate-y-2 opacity-0',
-          )}
-        >
-          <div className="grid grid-cols-5 gap-1.5">
-            {quickActions.map((action, index) => (
-              <button
-                key={action.key}
-                type="button"
-                onClick={() => pick(action.key)}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 rounded-[16px] border border-ink/5 bg-surface px-1 py-2.5 shadow-[var(--shadow-soft)] transition-all duration-200 ease-out active:scale-95 dark:border-white/10 dark:bg-surface-dark',
-                  expanded ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
-                )}
-                style={{ transitionDelay: expanded ? `${index * 35}ms` : '0ms' }}
-              >
-                <span className={cn('grid h-9 w-9 place-items-center rounded-full', action.color)}>
-                  <action.icon className="h-4 w-4" strokeWidth={2} />
-                </span>
-                <span className="text-center text-[9px] font-semibold leading-tight text-ink dark:text-white">
-                  {action.shortLabel}
-                </span>
-              </button>
-            ))}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="relative mx-auto max-w-[390px] pointer-events-auto">
+          <div
+            className={cn(
+              'absolute inset-x-0 bottom-full mb-3 transition-all duration-200',
+              expanded
+                ? 'pointer-events-auto translate-y-0 opacity-100'
+                : 'pointer-events-none translate-y-2 opacity-0',
+            )}
+            aria-hidden={!expanded}
+          >
+            <div className="grid grid-cols-5 gap-1.5">
+              {quickActions.map((action, index) => (
+                <button
+                  key={action.key}
+                  type="button"
+                  tabIndex={expanded ? 0 : -1}
+                  onClick={() => pick(action.key)}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 rounded-[16px] border border-ink/5 bg-surface px-1 py-2.5 shadow-[var(--shadow-soft)] transition-all duration-200 ease-out active:scale-95 dark:border-white/10 dark:bg-surface-dark',
+                    expanded ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
+                  )}
+                  style={{ transitionDelay: expanded ? `${index * 35}ms` : '0ms' }}
+                >
+                  <span className={cn('grid h-9 w-9 place-items-center rounded-full', action.color)}>
+                    <action.icon className="h-4 w-4" strokeWidth={2} />
+                  </span>
+                  <span className="text-center text-[9px] font-semibold leading-tight text-ink dark:text-white">
+                    {action.shortLabel}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <nav
-          className="mx-auto flex max-w-[390px] items-center gap-1 rounded-[22px] border border-ink/5 bg-surface/95 px-1.5 py-1.5 shadow-[var(--shadow-nav)] backdrop-blur-xl dark:border-white/10 dark:bg-surface-dark/95"
-          aria-label="Main navigation"
-        >
+          <nav
+            className="flex items-center gap-1 rounded-[22px] border border-ink/5 bg-surface/95 px-1.5 py-1.5 shadow-[var(--shadow-nav)] backdrop-blur-xl dark:border-white/10 dark:bg-surface-dark/95"
+            aria-label="Main navigation"
+          >
           {left.map((item) => (
             <TabLink key={item.to} item={item} location={location.pathname} dimmed={expanded} />
           ))}
@@ -129,7 +134,8 @@ export function FabMenu({ expanded, onToggle }: { expanded: boolean; onToggle: (
           {right.map((item) => (
             <TabLink key={item.to} item={item} location={location.pathname} dimmed={expanded} />
           ))}
-        </nav>
+          </nav>
+        </div>
       </div>
     </>
   )
