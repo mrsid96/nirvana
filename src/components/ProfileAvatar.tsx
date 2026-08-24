@@ -12,6 +12,7 @@ export function ProfileAvatar({ className }: { className?: string }) {
   return (
     <Link
       to="/profile"
+      data-tour="profile"
       className={cn(
         'grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-ink/8 bg-surface shadow-[var(--shadow-soft)] transition-transform active:scale-95 dark:border-white/10 dark:bg-surface-dark',
         className,

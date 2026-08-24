@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { User } from 'firebase/auth'
 import { subscribeToAuth, signInWithGoogle, signOut } from '@/firebase/auth'
 import { isFirebaseConfigured } from '@/firebase/config'
-import { completeOnboarding, ensureUserProfile, getSettings, updateSettings } from '@/services/userService'
+import { completeOnboarding, completeAppTour, ensureUserProfile, getSettings, updateSettings } from '@/services/userService'
+import { CURRENT_ONBOARDING_VERSION } from '@/lib/app-tour'
 import { applyThemeToDocument, getStoredTheme, persistTheme } from '@/lib/theme'
 import { logDevError, toUserMessage } from '@/lib/errors'
 import type { SupportedCurrency, ThemeMode, UserProfile, UserSettings } from '@/types/user'
@@ -16,6 +17,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>
   signOutUser: () => Promise<void>
   finishOnboarding: (country: string, currency: SupportedCurrency) => Promise<void>
+  markAppTourComplete: () => Promise<void>
   saveSettings: (
     data: Partial<Pick<UserSettings, 'currency' | 'country' | 'dashboardMonth' | 'theme'>>,
   ) => Promise<void>
@@ -78,6 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           current ? { ...current, country, currency, onboardingComplete: true } : current,
         )
         setSettings((current) => (current ? { ...current, country, currency } : current))
+      },
+      markAppTourComplete: async () => {
+        if (!user) return
+        const completedAt = new Date().toISOString()
+        await completeAppTour(user.uid)
+        setProfile((current) =>
+          current
+            ? {
+                ...current,
+                hasCompletedOnboarding: true,
+                onboardingVersion: CURRENT_ONBOARDING_VERSION,
+                onboardingCompletedAt: completedAt,
+              }
+            : current,
+        )
       },
       saveSettings: async (data) => {
         if (!user) return

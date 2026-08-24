@@ -3,7 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { AppTourLayer } from '@/components/onboarding/AppTourLayer'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { AppTourProvider } from '@/contexts/AppTourContext'
 import { FinanceProvider } from '@/contexts/FinanceContext'
 import { applyThemeToDocument, getStoredTheme, persistTheme } from '@/lib/theme'
 import type { ThemeMode } from '@/types/user'
@@ -143,7 +145,10 @@ export default function App() {
                   <Route
                     element={
                       <Guard>
-                        <AppShell />
+                        <AppTourProvider>
+                          <AppShell />
+                          <AppTourLayer />
+                        </AppTourProvider>
                       </Guard>
                     }
                   >

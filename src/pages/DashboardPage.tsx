@@ -10,6 +10,7 @@ import { SegmentedControl } from '@/components/SegmentedControl'
 import { DashboardSkeleton } from '@/components/Skeleton'
 import { ChartCard, DonutChart, WealthGrowthChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
+import { useOptionalAppTour } from '@/contexts/AppTourContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateMonthlyCashFlow, cashFlowFromMonthlySummary } from '@/lib/calculations/cashflow'
 import { calculateFinancialHealth } from '@/lib/calculations/financialHealth'
@@ -40,12 +41,21 @@ type HomeTab = 'month' | 'notifications'
 
 export function DashboardPage() {
   const { profile } = useAuth()
+  const appTour = useOptionalAppTour()
   const finance = useFinance()
   const { ensureWealthHistory } = finance
   const [tab, setTab] = useState<HomeTab>('month')
   const currency = profile?.currency ?? 'INR'
   const month = currentMonthKey()
   const asOf = todayIsoDate()
+
+  useEffect(() => {
+    const requestedTab = appTour?.requestedDashboardTab
+    const clearRequest = appTour?.clearDashboardTabRequest
+    if (!requestedTab || !clearRequest) return
+    setTab(requestedTab)
+    clearRequest()
+  }, [appTour?.requestedDashboardTab, appTour?.clearDashboardTabRequest])
 
   const cashflow = useMemo(() => {
     const fromSummary = cashFlowFromMonthlySummary(

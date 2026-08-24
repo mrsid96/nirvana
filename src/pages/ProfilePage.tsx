@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Globe, Palette, Wallet } from 'lucide-react'
+import { Compass, Globe, Palette, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Card, Field, SectionTitle, Select } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAppTour } from '@/contexts/AppTourContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { clearAllFinanceData } from '@/dev/clearFinanceData'
 import { seedDemoData } from '@/dev/seedDemoData'
@@ -15,6 +16,7 @@ const DISCLAIMER =
 
 export function ProfilePage() {
   const { profile, settings, saveSettings, signOutUser, user } = useAuth()
+  const { startTour } = useAppTour()
   const finance = useFinance()
   const [country, setCountry] = useState(settings?.country ?? profile?.country ?? 'IN')
   const [currency, setCurrency] = useState<SupportedCurrency>(settings?.currency ?? 'INR')
@@ -227,6 +229,22 @@ export function ProfilePage() {
               </Button>
             </>
           ) : null}
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle title="Help & Guidance" />
+        <Card className="space-y-3">
+          <button
+            type="button"
+            className="flex min-h-11 w-full items-center gap-3 rounded-[14px] px-1 text-sm font-medium text-ink transition-colors hover:bg-ink/5 dark:text-white dark:hover:bg-white/5"
+            onClick={() => startTour({ replay: true })}
+          >
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-accent/10 text-accent">
+              <Compass className="h-4 w-4" strokeWidth={2} />
+            </span>
+            Take App Tour Again
+          </button>
         </Card>
       </section>
 

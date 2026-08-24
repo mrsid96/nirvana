@@ -9,6 +9,9 @@ export interface UserProfile {
   country: string
   currency: SupportedCurrency
   onboardingComplete: boolean
+  hasCompletedOnboarding?: boolean
+  onboardingVersion?: number
+  onboardingCompletedAt?: string
   schemaVersion?: number
   createdAt: string
   updatedAt: string
