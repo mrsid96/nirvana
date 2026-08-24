@@ -8,6 +8,7 @@ import { NotificationsTab, useNotificationCount } from '@/components/Notificatio
 import { ProfileAvatar } from '@/components/ProfileAvatar'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { DashboardSkeleton } from '@/components/Skeleton'
+import { CommandBar } from '@/components/CommandBar'
 import { ChartCard, DonutChart, WealthGrowthChart } from '@/components/charts'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOptionalAppTour } from '@/contexts/AppTourContext'
@@ -139,6 +140,8 @@ export function DashboardPage() {
         </div>
         <ProfileAvatar className="mt-1" />
       </header>
+
+      <CommandBar contextKey="home" />
 
       <section
         className={
