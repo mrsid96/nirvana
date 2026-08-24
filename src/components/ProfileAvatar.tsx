@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
 import { UserRound } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { firstName } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 export function ProfileAvatar({ className }: { className?: string }) {
-  const { user, profile } = useAuth()
+  const { user, profile } = useEffectiveAuth()
   const photoURL = user?.photoURL ?? profile?.photoURL
   const name = firstName(profile?.displayName ?? user?.displayName)
 

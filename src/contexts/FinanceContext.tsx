@@ -9,6 +9,10 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useDemo } from '@/contexts/DemoContext'
+import { DEMO_USER_ID } from '@/demo/constants'
+import { createDemoFinanceState } from '@/demo/demoData'
+import { nextDemoId } from '@/demo/demoId'
 import { migrateFirestoreV1 } from '@/dev/firestoreMigration'
 import { runFirestoreOperation } from '@/firebase/performance'
 import { SCHEMA_VERSION } from '@/firebase/schema'
@@ -76,6 +80,7 @@ import type { Income } from '@/types/income'
 import type { Loan, LoanPayment } from '@/types/loan'
 import type { MonthlySummary } from '@/types/monthlySummary'
 import type { RecurringActivity, ScheduledOccurrence } from '@/types/recurring'
+import { withFreeCashFlow } from '@/types/monthlySummary'
 import type { AssetTransaction } from '@/types/transaction'
 import type { QueryDocumentSnapshot } from 'firebase/firestore'
 
@@ -163,6 +168,8 @@ function monthSummary(state: FinanceState, month: string): MonthlySummary | null
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const { user, profile, settings } = useAuth()
+  const { isDemoMode } = useDemo()
+  const financeUid = isDemoMode ? DEMO_USER_ID : user?.uid
   const [state, setState] = useState<FinanceState>(empty)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -203,6 +210,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       )
       const occurrences = syncOccurrences(allActivities, slice.scheduledOccurrences, today)
       setState((prev) => ({ ...prev, scheduledOccurrences: occurrences }))
+      if (isDemoMode) return
       void syncScheduledOccurrences(
         uid,
         {
@@ -215,12 +223,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         today,
       ).catch(logDevError)
     },
-    [],
+    [isDemoMode],
   )
 
   const refresh = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!user) {
+      if (!financeUid) {
         setState(empty)
         return
       }
@@ -233,8 +241,40 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       loadedRecentActivityRef.current = false
       loadedRecurringRef.current = false
 
+      if (isDemoMode) {
+        try {
+          const demoState = createDemoFinanceState()
+          const today = todayIsoDate()
+          const occurrences = syncOccurrences(
+            mergeRecurringActivities([], demoState.assets, demoState.loans),
+            demoState.scheduledOccurrences,
+            today,
+          )
+          loadedWealthHistoryRef.current = true
+          loadedRecentActivityRef.current = true
+          loadedRecurringRef.current = true
+          for (const goal of demoState.goals) loadedGoalDetailsRef.current.add(goal.id)
+          for (const loan of demoState.loans) loadedLoanDetailsRef.current.add(loan.id)
+          for (const month of Object.keys(demoState.monthlySummaries)) {
+            loadedStatementMonthsRef.current.add(month)
+          }
+          setWealthActivityCursor(null)
+          setWealthActivityHasMore(false)
+          setLoanActivityCursor(null)
+          setLoanActivityHasMore(false)
+          setState({ ...demoState, scheduledOccurrences: occurrences })
+        } catch (err) {
+          logDevError(err)
+          setError(toUserMessage(err))
+        } finally {
+          if (!options?.silent) setLoading(false)
+        }
+        return
+      }
+
       try {
         await runFirestoreOperation('Dashboard Load', async () => {
+          if (!user) return
           const needsMigration = (profile?.schemaVersion ?? 1) < SCHEMA_VERSION
           if (needsMigration) {
             const migration = await migrateFirestoreV1(user.uid)
@@ -275,7 +315,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
             const recurringActivities = await loadRecurringActivities(user.uid)
             loadedRecurringRef.current = true
             setState((prev) => {
-              syncOccurrencesInBackground(user.uid, { ...prev, recurringActivities }, recurringActivities)
+              syncOccurrencesInBackground(user!.uid, { ...prev, recurringActivities }, recurringActivities)
               return { ...prev, recurringActivities }
             })
           }).catch(logDevError)
@@ -287,7 +327,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         if (!options?.silent) setLoading(false)
       }
     },
-    [user, dashboardMonth, profile?.schemaVersion, syncOccurrencesInBackground],
+    [financeUid, isDemoMode, user, dashboardMonth, profile?.schemaVersion, syncOccurrencesInBackground],
   )
 
   useEffect(() => {
@@ -295,22 +335,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   const ensureWealthHistory = useCallback(async () => {
-    if (!user || loadedWealthHistoryRef.current) return
+    if (!financeUid || loadedWealthHistoryRef.current) return
     loadedWealthHistoryRef.current = true
+    if (isDemoMode) return
     await runFirestoreOperation('Wealth History', async () => {
-      const historyTransactions = await loadWealthHistoryTransactions(user.uid, 13)
+      const historyTransactions = await loadWealthHistoryTransactions(user!.uid, 13)
       setState((prev) => ({
         ...prev,
         transactions: mergeById(prev.transactions, historyTransactions),
       }))
     })
-  }, [user])
+  }, [financeUid, isDemoMode, user])
 
   const ensureRecentActivity = useCallback(async () => {
-    if (!user || loadedRecentActivityRef.current) return
+    if (!financeUid || loadedRecentActivityRef.current) return
     loadedRecentActivityRef.current = true
+    if (isDemoMode) return
     await runFirestoreOperation('Recent Activity', async () => {
-      const recentActivity = await loadRecentTransactions(user.uid)
+      const recentActivity = await loadRecentTransactions(user!.uid)
       setWealthActivityCursor(recentActivity.cursor)
       setWealthActivityHasMore(recentActivity.hasMore)
       setState((prev) => ({
@@ -318,26 +360,31 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         transactions: mergeById(prev.transactions, recentActivity.items),
       }))
     })
-  }, [user])
+  }, [financeUid, isDemoMode, user])
 
   const ensureRecurringActivities = useCallback(async () => {
-    if (!user || loadedRecurringRef.current) return
+    if (!financeUid || loadedRecurringRef.current) return
     loadedRecurringRef.current = true
+    if (isDemoMode) return
     await runFirestoreOperation('Recurring Activities', async () => {
-      const recurringActivities = await loadRecurringActivities(user.uid)
+      const recurringActivities = await loadRecurringActivities(user!.uid)
       setState((prev) => {
-        syncOccurrencesInBackground(user.uid, { ...prev, recurringActivities }, recurringActivities)
+        syncOccurrencesInBackground(user!.uid, { ...prev, recurringActivities }, recurringActivities)
         return { ...prev, recurringActivities }
       })
     })
-  }, [user, syncOccurrencesInBackground])
+  }, [financeUid, isDemoMode, user, syncOccurrencesInBackground])
 
   const ensureGoalDetail = useCallback(
     async (goalId: string) => {
-      if (!user || loadedGoalDetailsRef.current.has(goalId)) return
+      if (!financeUid || loadedGoalDetailsRef.current.has(goalId)) return
+      if (isDemoMode) {
+        loadedGoalDetailsRef.current.add(goalId)
+        return
+      }
       await runDetailLoad(`goal:${goalId}`, async () => {
         await runFirestoreOperation('Goal Detail', async () => {
-          const detail = await loadGoalDetailData(user.uid, goalId)
+          const detail = await loadGoalDetailData(user!.uid, goalId)
           setState((prev) => ({
             ...prev,
             assets: mergeById(prev.assets, detail.assets),
@@ -347,15 +394,19 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         loadedGoalDetailsRef.current.add(goalId)
       })
     },
-    [user, runDetailLoad],
+    [financeUid, isDemoMode, user, runDetailLoad],
   )
 
   const ensureLoanDetail = useCallback(
     async (loanId: string) => {
-      if (!user || loadedLoanDetailsRef.current.has(loanId)) return
+      if (!financeUid || loadedLoanDetailsRef.current.has(loanId)) return
+      if (isDemoMode) {
+        loadedLoanDetailsRef.current.add(loanId)
+        return
+      }
       await runDetailLoad(`loan:${loanId}`, async () => {
         await runFirestoreOperation('Loan Detail', async () => {
-          const payments = await loadLoanDetailPayments(user.uid, loanId)
+          const payments = await loadLoanDetailPayments(user!.uid, loanId)
           setState((prev) => ({
             ...prev,
             loanPayments: mergeById(prev.loanPayments, payments),
@@ -364,15 +415,19 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         loadedLoanDetailsRef.current.add(loanId)
       })
     },
-    [user, runDetailLoad],
+    [financeUid, isDemoMode, user, runDetailLoad],
   )
 
   const ensureStatementMonth = useCallback(
     async (month: string) => {
-      if (!user || loadedStatementMonthsRef.current.has(month)) return
+      if (!financeUid || loadedStatementMonthsRef.current.has(month)) return
+      if (isDemoMode) {
+        loadedStatementMonthsRef.current.add(month)
+        return
+      }
       await runDetailLoad(`statement:${month}`, async () => {
         await runFirestoreOperation('Statement Month', async () => {
-          const data = await loadStatementMonthData(user.uid, month)
+          const data = await loadStatementMonthData(user!.uid, month)
           setState((prev) => ({
             ...prev,
             expenses: mergeById(prev.expenses, data.expenses),
@@ -392,30 +447,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         loadedStatementMonthsRef.current.add(month)
       })
     },
-    [user, dashboardMonth, runDetailLoad],
+    [financeUid, isDemoMode, user, dashboardMonth, runDetailLoad],
   )
 
   const loadMoreWealthActivity = useCallback(async () => {
-    if (!user || !wealthActivityHasMore) return
-    const page = await loadRecentTransactions(user.uid, undefined, wealthActivityCursor)
+    if (!financeUid || !wealthActivityHasMore || isDemoMode) return
+    const page = await loadRecentTransactions(user!.uid, undefined, wealthActivityCursor)
     setWealthActivityCursor(page.cursor)
     setWealthActivityHasMore(page.hasMore)
     setState((prev) => ({
       ...prev,
       transactions: mergeById(prev.transactions, page.items),
     }))
-  }, [user, wealthActivityCursor, wealthActivityHasMore])
+  }, [financeUid, isDemoMode, user, wealthActivityCursor, wealthActivityHasMore])
 
   const loadMoreLoanActivity = useCallback(async () => {
-    if (!user || !loanActivityHasMore) return
-    const page = await loadRecentLoanPayments(user.uid, undefined, loanActivityCursor)
+    if (!financeUid || !loanActivityHasMore || isDemoMode) return
+    const page = await loadRecentLoanPayments(user!.uid, undefined, loanActivityCursor)
     setLoanActivityCursor(page.cursor)
     setLoanActivityHasMore(page.hasMore)
     setState((prev) => ({
       ...prev,
       loanPayments: mergeById(prev.loanPayments, page.items),
     }))
-  }, [user, loanActivityCursor, loanActivityHasMore])
+  }, [financeUid, isDemoMode, user, loanActivityCursor, loanActivityHasMore])
 
   const allRecurringActivities = useMemo(
     () => mergeRecurringActivities(state.recurringActivities, state.assets, state.loans),
@@ -442,15 +497,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       loadMoreWealthActivity,
       loadMoreLoanActivity,
       addGoal: async (input) => {
-        if (!user) throw new Error('Not signed in')
-        const id = await runFirestoreOperation('Create Goal', () => createGoal(user.uid, input))
-        const goal = buildGoalFromInput(id, user.uid, input)
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          const id = nextDemoId('goal')
+          const goal = buildGoalFromInput(id, financeUid, input)
+          setState((prev) => applyGoalPatch(prev, goal))
+          return id
+        }
+        const id = await runFirestoreOperation('Create Goal', () => createGoal(user!.uid, input))
+        const goal = buildGoalFromInput(id, user!.uid, input)
         setState((prev) => applyGoalPatch(prev, goal))
         return id
       },
       editGoal: async (id, input) => {
-        if (!user) throw new Error('Not signed in')
-        await runFirestoreOperation('Edit Goal', () => updateGoal(user.uid, id, input))
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            goals: prev.goals.map((goal) =>
+              goal.id === id ? { ...goal, ...input, updatedAt: nowIso() } : goal,
+            ),
+          }))
+          return
+        }
+        await runFirestoreOperation('Edit Goal', () => updateGoal(user!.uid, id, input))
         setState((prev) => ({
           ...prev,
           goals: prev.goals.map((goal) =>
@@ -459,8 +529,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       removeGoal: async (id) => {
-        if (!user) throw new Error('Not signed in')
-        await runFirestoreOperation('Delete Goal', () => deleteGoal(user.uid, id))
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            goals: prev.goals.map((goal) =>
+              goal.id === id ? { ...goal, isDeleted: true, status: 'paused', updatedAt: nowIso() } : goal,
+            ),
+          }))
+          return
+        }
+        await runFirestoreOperation('Delete Goal', () => deleteGoal(user!.uid, id))
         setState((prev) => ({
           ...prev,
           goals: prev.goals.map((goal) =>
@@ -469,19 +548,39 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       addAsset: async (input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const goalAssets = stateRef.current.assets.filter(
           (item) => item.goalId === input.goalId && !item.isDeleted,
         )
+        if (isDemoMode) {
+          const id = nextDemoId('asset')
+          const now = nowIso()
+          const mapped = mapAsset(
+            {
+              ...input,
+              id,
+              userId: financeUid,
+              isDeleted: false,
+              createdAt: now,
+              updatedAt: now,
+            },
+            input.goalId,
+          )
+          setState((prev) => {
+            const goals = patchGoalInList(prev.goals, input.goalId, {}, [...prev.assets, mapped])
+            return applyAssetPatch({ ...prev, goals }, mapped)
+          })
+          return id
+        }
         const id = await runFirestoreOperation('Create Asset', () =>
-          createAsset(user.uid, input, { goalAssets }),
+          createAsset(user!.uid, input, { goalAssets }),
         )
         const now = nowIso()
         const mapped = mapAsset(
           {
             ...input,
             id,
-            userId: user.uid,
+            userId: user!.uid,
             isDeleted: false,
             createdAt: now,
             updatedAt: now,
@@ -495,14 +594,23 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return id
       },
       editAsset: async (goalId, id, input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const existing = stateRef.current.assets.find((item) => item.id === id)
         if (!existing) throw new Error('Asset not found')
         const goalAssets = stateRef.current.assets.filter(
           (item) => item.goalId === goalId && !item.isDeleted,
         )
+        if (isDemoMode) {
+          const merged = mapAsset({ ...existing, ...input, id }, goalId)
+          setState((prev) => {
+            const assets = prev.assets.map((item) => (item.id === id ? merged : item))
+            const goals = patchGoalInList(prev.goals, goalId, {}, assets)
+            return { ...prev, assets, goals }
+          })
+          return
+        }
         await runFirestoreOperation('Edit Asset', () =>
-          updateAsset(user.uid, goalId, id, input, { existing, goalAssets }),
+          updateAsset(user!.uid, goalId, id, input, { existing, goalAssets }),
         )
         const merged = mapAsset({ ...existing, ...input, id }, goalId)
         setState((prev) => {
@@ -512,12 +620,22 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
       },
       removeAsset: async (goalId, id) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => {
+            const assets = prev.assets.map((item) =>
+              item.id === id ? { ...item, isDeleted: true, isActive: false, updatedAt: nowIso() } : item,
+            )
+            const goals = patchGoalInList(prev.goals, goalId, {}, assets)
+            return { ...prev, assets, goals }
+          })
+          return
+        }
         const goalAssets = stateRef.current.assets.filter(
           (item) => item.goalId === goalId && !item.isDeleted && item.id !== id,
         )
         await runFirestoreOperation('Delete Asset', () =>
-          deleteAsset(user.uid, goalId, id, { goalAssets }),
+          deleteAsset(user!.uid, goalId, id, { goalAssets }),
         )
         setState((prev) => {
           const assets = prev.assets.map((item) =>
@@ -528,15 +646,44 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
       },
       addTransaction: async (input, asset) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const goal = stateRef.current.goals.find((item) => item.id === input.goalId)
         if (!goal) throw new Error('Goal not found')
         const month = monthKeyFromDate(input.date)
+        if (isDemoMode) {
+          const id = nextDemoId('tx')
+          const tx: AssetTransaction = {
+            ...input,
+            id,
+            userId: financeUid,
+            month,
+            isDeleted: false,
+            createdAt: nowIso(),
+          }
+          const effects = computeTransactionSideEffects(
+            asset,
+            tx,
+            goal,
+            stateRef.current.assets,
+            monthSummary(stateRef.current, month),
+          )
+          setState((prev) =>
+            applyTransactionPatch(
+              prev,
+              tx,
+              effects.asset,
+              effects.goal,
+              effects.monthlySummary,
+              dashboardMonth,
+            ),
+          )
+          return
+        }
         const siblingAssetIds = stateRef.current.assets
           .filter((item) => item.goalId === input.goalId && item.id !== asset.id && !item.isDeleted)
           .map((item) => item.id)
         const result = await runFirestoreOperation('Add Investment', () =>
-          createTransaction(user.uid, input, asset, { siblingAssetIds }),
+          createTransaction(user!.uid, input, asset, { siblingAssetIds }),
         )
         const effects = computeTransactionSideEffects(
           asset,
@@ -557,14 +704,58 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         )
       },
       removeTransaction: async (tx, asset) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const goal = stateRef.current.goals.find((item) => item.id === tx.goalId)
         if (!goal) throw new Error('Goal not found')
+        if (isDemoMode) {
+          let nextAsset = { ...asset }
+          if (tx.type === 'INVESTMENT') {
+            nextAsset.investedAmount = Math.max(0, nextAsset.investedAmount - tx.amount)
+            nextAsset.currentValue = Math.max(0, nextAsset.currentValue - tx.amount)
+          } else if (tx.type === 'WITHDRAWAL') {
+            nextAsset.totalWithdrawals = Math.max(0, nextAsset.totalWithdrawals - tx.amount)
+            nextAsset.currentValue += tx.amount
+          } else {
+            nextAsset.currentValue = tx.amount
+          }
+          nextAsset = mapAsset({ ...nextAsset, updatedAt: nowIso() }, tx.goalId)
+          const delta =
+            tx.type === 'INVESTMENT'
+              ? { investments: -tx.amount, transactionCount: -1 }
+              : tx.type === 'WITHDRAWAL'
+                ? { withdrawals: -tx.amount, transactionCount: -1 }
+                : { transactionCount: -1 }
+          const monthlySummary = applyMonthlyDelta(
+            monthSummary(stateRef.current, tx.month) ?? emptyMonthlySummary(tx.month),
+            tx.month,
+            delta,
+          )
+          setState((prev) => {
+            const goals = patchGoalInList(
+              prev.goals,
+              tx.goalId,
+              {},
+              prev.assets.map((item) => (item.id === asset.id ? nextAsset : item)),
+            )
+            return {
+              ...prev,
+              goals,
+              assets: prev.assets.map((item) => (item.id === asset.id ? nextAsset : item)),
+              transactions: prev.transactions.map((item) =>
+                item.id === tx.id ? { ...item, isDeleted: true } : item,
+              ),
+              monthlySummaries: { ...prev.monthlySummaries, [tx.month]: monthlySummary },
+              currentMonthlySummary:
+                tx.month === dashboardMonth ? monthlySummary : prev.currentMonthlySummary,
+            }
+          })
+          return
+        }
         const siblingAssetIds = stateRef.current.assets
           .filter((item) => item.goalId === tx.goalId && item.id !== asset.id && !item.isDeleted)
           .map((item) => item.id)
         await runFirestoreOperation('Delete Transaction', () =>
-          deleteTransaction(user.uid, tx, asset, { siblingAssetIds }),
+          deleteTransaction(user!.uid, tx, asset, { siblingAssetIds }),
         )
         let nextAsset = { ...asset }
         if (tx.type === 'INVESTMENT') {
@@ -609,15 +800,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
       },
       addLoan: async (input) => {
-        if (!user) throw new Error('Not signed in')
-        const id = await runFirestoreOperation('Create Loan', () => createLoan(user.uid, input))
-        const loan = buildLoanFromInput(id, user.uid, input)
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          const id = nextDemoId('loan')
+          const loan = buildLoanFromInput(id, financeUid, input)
+          setState((prev) => applyLoanPatch(prev, loan))
+          return id
+        }
+        const id = await runFirestoreOperation('Create Loan', () => createLoan(user!.uid, input))
+        const loan = buildLoanFromInput(id, user!.uid, input)
         setState((prev) => applyLoanPatch(prev, loan))
         return id
       },
       editLoan: async (id, input) => {
-        if (!user) throw new Error('Not signed in')
-        await runFirestoreOperation('Edit Loan', () => updateLoan(user.uid, id, input))
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            loans: prev.loans.map((loan) =>
+              loan.id === id ? { ...loan, ...input, updatedAt: nowIso() } : loan,
+            ),
+          }))
+          return
+        }
+        await runFirestoreOperation('Edit Loan', () => updateLoan(user!.uid, id, input))
         setState((prev) => ({
           ...prev,
           loans: prev.loans.map((loan) =>
@@ -626,8 +832,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       removeLoan: async (id) => {
-        if (!user) throw new Error('Not signed in')
-        await runFirestoreOperation('Delete Loan', () => deleteLoan(user.uid, id))
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            loans: prev.loans.map((loan) =>
+              loan.id === id ? { ...loan, isDeleted: true, status: 'CLOSED', updatedAt: nowIso() } : loan,
+            ),
+          }))
+          return
+        }
+        await runFirestoreOperation('Delete Loan', () => deleteLoan(user!.uid, id))
         setState((prev) => ({
           ...prev,
           loans: prev.loans.map((loan) =>
@@ -636,12 +851,48 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       addLoanPayment: async (input, updateOutstanding = true) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const loan = stateRef.current.loans.find((item) => item.id === input.loanId)
         if (!loan) throw new Error('Loan not found')
         const month = monthKeyFromDate(input.date)
+        if (isDemoMode) {
+          const id = nextDemoId('loan-pay')
+          const payment: LoanPayment = {
+            ...input,
+            id,
+            userId: financeUid,
+            month,
+            isDeleted: false,
+            createdAt: nowIso(),
+          }
+          const principal = input.principalAmount ?? input.amount
+          let nextLoan = loan
+          if (updateOutstanding) {
+            const outstandingAmount = Math.max(0, loan.outstandingAmount - principal)
+            const totalPaid = Math.max(0, loan.originalAmount - outstandingAmount)
+            nextLoan = {
+              ...loan,
+              outstandingAmount,
+              totalPaid,
+              progressPercentage:
+                loan.originalAmount <= 0 ? 0 : (totalPaid / loan.originalAmount) * 100,
+              updatedAt: nowIso(),
+            }
+          }
+          const monthlySummary = withFreeCashFlow(
+            applyMonthlyDelta(
+              monthSummary(stateRef.current, month) ?? emptyMonthlySummary(month),
+              month,
+              { loanPayments: input.amount, transactionCount: 1 },
+            ),
+          )
+          setState((prev) =>
+            applyLoanPaymentPatch(prev, payment, nextLoan, monthlySummary, dashboardMonth),
+          )
+          return
+        }
         const result = await runFirestoreOperation('Record Loan Payment', () =>
-          createLoanPayment(user.uid, input, updateOutstanding, {
+          createLoanPayment(user!.uid, input, updateOutstanding, {
             loan,
             currentSummary: monthSummary(stateRef.current, month),
           }),
@@ -657,10 +908,37 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         )
       },
       addExpense: async (input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const month = monthKeyFromDate(input.date)
+        if (isDemoMode) {
+          const id = nextDemoId('expense')
+          const expense: Expense = {
+            ...input,
+            id,
+            userId: financeUid,
+            month,
+            isDeleted: false,
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          }
+          const delta =
+            input.category !== 'EMI'
+              ? { expenses: input.amount, transactionCount: 1 }
+              : { loanPayments: input.amount, transactionCount: 1 }
+          const monthlySummary = withFreeCashFlow(
+            applyMonthlyDelta(
+              monthSummary(stateRef.current, month) ?? emptyMonthlySummary(month),
+              month,
+              delta,
+            ),
+          )
+          setState((prev) =>
+            applyExpensePatch(prev, expense, monthlySummary, dashboardMonth),
+          )
+          return
+        }
         const result = await runFirestoreOperation('Add Expense', () =>
-          createExpense(user.uid, input, {
+          createExpense(user!.uid, input, {
             currentSummary: monthSummary(stateRef.current, month),
           }),
         )
@@ -669,9 +947,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         )
       },
       removeExpense: async (id) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const expense = stateRef.current.expenses.find((item) => item.id === id)
-        await runFirestoreOperation('Delete Expense', () => deleteExpense(user.uid, id))
+        if (isDemoMode) {
+          if (expense) {
+            const delta =
+              expense.category !== 'EMI'
+                ? { expenses: -expense.amount, transactionCount: -1 }
+                : { loanPayments: -expense.amount, transactionCount: -1 }
+            const monthlySummary = applyMonthlyDelta(
+              monthSummary(stateRef.current, expense.month) ?? emptyMonthlySummary(expense.month),
+              expense.month,
+              delta,
+            )
+            setState((prev) => ({
+              ...prev,
+              expenses: softDeleteById(prev.expenses, id),
+              monthlySummaries: { ...prev.monthlySummaries, [expense.month]: monthlySummary },
+              currentMonthlySummary:
+                expense.month === dashboardMonth ? monthlySummary : prev.currentMonthlySummary,
+            }))
+          }
+          return
+        }
+        await runFirestoreOperation('Delete Expense', () => deleteExpense(user!.uid, id))
         if (expense) {
           const delta =
             expense.category !== 'EMI'
@@ -692,10 +991,32 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }
       },
       addIncome: async (input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const month = monthKeyFromDate(input.date)
+        if (isDemoMode) {
+          const id = nextDemoId('income')
+          const income: Income = {
+            ...input,
+            id,
+            userId: financeUid,
+            month,
+            isDeleted: false,
+            createdAt: nowIso(),
+          }
+          const monthlySummary = withFreeCashFlow(
+            applyMonthlyDelta(
+              monthSummary(stateRef.current, month) ?? emptyMonthlySummary(month),
+              month,
+              { income: input.amount, transactionCount: 1 },
+            ),
+          )
+          setState((prev) =>
+            applyIncomePatch(prev, income, monthlySummary, dashboardMonth),
+          )
+          return
+        }
         const result = await runFirestoreOperation('Add Income', () =>
-          createIncome(user.uid, input, {
+          createIncome(user!.uid, input, {
             currentSummary: monthSummary(stateRef.current, month),
           }),
         )
@@ -704,9 +1025,26 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         )
       },
       removeIncome: async (id) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
         const income = stateRef.current.income.find((item) => item.id === id)
-        await runFirestoreOperation('Delete Income', () => deleteIncome(user.uid, id))
+        if (isDemoMode) {
+          if (income) {
+            const monthlySummary = applyMonthlyDelta(
+              monthSummary(stateRef.current, income.month) ?? emptyMonthlySummary(income.month),
+              income.month,
+              { income: -income.amount, transactionCount: -1 },
+            )
+            setState((prev) => ({
+              ...prev,
+              income: softDeleteById(prev.income, id),
+              monthlySummaries: { ...prev.monthlySummaries, [income.month]: monthlySummary },
+              currentMonthlySummary:
+                income.month === dashboardMonth ? monthlySummary : prev.currentMonthlySummary,
+            }))
+          }
+          return
+        }
+        await runFirestoreOperation('Delete Income', () => deleteIncome(user!.uid, id))
         if (income) {
           const monthlySummary = applyMonthlyDelta(
             monthSummary(stateRef.current, income.month) ?? emptyMonthlySummary(income.month),
@@ -723,15 +1061,32 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }
       },
       addRecurringActivity: async (input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          const id = nextDemoId('recurring')
+          const now = nowIso()
+          const activity: RecurringActivity = {
+            ...input,
+            id,
+            userId: financeUid,
+            isDeleted: false,
+            createdAt: now,
+            updatedAt: now,
+          }
+          setState((prev) => ({
+            ...prev,
+            recurringActivities: [...prev.recurringActivities, activity],
+          }))
+          return id
+        }
         const id = await runFirestoreOperation('Create Recurring Activity', () =>
-          createRecurringActivity(user.uid, input),
+          createRecurringActivity(user!.uid, input),
         )
         const now = nowIso()
         const activity: RecurringActivity = {
           ...input,
           id,
-          userId: user.uid,
+          userId: user!.uid,
           isDeleted: false,
           createdAt: now,
           updatedAt: now,
@@ -743,9 +1098,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         return id
       },
       editRecurringActivity: async (id, input) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            recurringActivities: prev.recurringActivities.map((item) =>
+              item.id === id ? { ...item, ...input, updatedAt: nowIso() } : item,
+            ),
+          }))
+          return
+        }
         await runFirestoreOperation('Edit Recurring Activity', () =>
-          updateRecurringActivity(user.uid, id, input),
+          updateRecurringActivity(user!.uid, id, input),
         )
         setState((prev) => ({
           ...prev,
@@ -755,9 +1119,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       removeRecurringActivity: async (id) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          setState((prev) => ({
+            ...prev,
+            recurringActivities: prev.recurringActivities.map((item) =>
+              item.id === id
+                ? { ...item, isDeleted: true, status: 'PAUSED', updatedAt: nowIso() }
+                : item,
+            ),
+          }))
+          return
+        }
         await runFirestoreOperation('Delete Recurring Activity', () =>
-          deleteRecurringActivity(user.uid, id),
+          deleteRecurringActivity(user!.uid, id),
         )
         setState((prev) => ({
           ...prev,
@@ -769,7 +1144,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       recordOccurrence: async (occurrence, params) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          const recorded: ScheduledOccurrence = {
+            ...occurrence,
+            status: 'RECORDED',
+            actualAmount: params.actualAmount,
+            actualDate: params.actualDate,
+            recordedAt: nowIso(),
+            syncState: 'SYNCED',
+          }
+          setState((prev) => ({
+            ...prev,
+            scheduledOccurrences: prev.scheduledOccurrences.map((item) =>
+              item.id === occurrence.id ? recorded : item,
+            ),
+          }))
+          return
+        }
         const month = monthKeyFromDate(params.actualDate)
         const result = await runFirestoreOperation('Record Occurrence', () =>
           recordScheduledOccurrence(user!.uid, occurrence, params, {
@@ -836,7 +1228,23 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         })
       },
       skipOccurrence: async (occurrence, reason) => {
-        if (!user) throw new Error('Not signed in')
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          const skipped: ScheduledOccurrence = {
+            ...occurrence,
+            status: 'SKIPPED',
+            skipReason: reason,
+            recordedAt: nowIso(),
+            syncState: 'SYNCED',
+          }
+          setState((prev) => ({
+            ...prev,
+            scheduledOccurrences: prev.scheduledOccurrences.map((item) =>
+              item.id === occurrence.id ? skipped : item,
+            ),
+          }))
+          return
+        }
         await runFirestoreOperation('Skip Occurrence', () =>
           skipScheduledOccurrence(user!.uid, occurrence, reason),
         )
@@ -855,8 +1263,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }))
       },
       exportJson: async () => {
-        if (!user) throw new Error('Not signed in')
-        return exportUserData(user.uid)
+        if (!financeUid) throw new Error('Not signed in')
+        if (isDemoMode) {
+          return {
+            ...stateRef.current,
+            demo: true,
+            exportedAt: nowIso(),
+          }
+        }
+        return exportUserData(user!.uid)
       },
     }),
     [
@@ -878,6 +1293,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       loadMoreWealthActivity,
       loadMoreLoanActivity,
       user,
+      financeUid,
+      isDemoMode,
       dashboardMonth,
     ],
   )

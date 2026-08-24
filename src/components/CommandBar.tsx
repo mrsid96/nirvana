@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Pencil, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Card, Input, Pill } from '@/components/ui'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
 import { totalOutstanding } from '@/lib/calculations/loans'
@@ -45,7 +45,7 @@ export function CommandBar({
   assetId?: string
   loanId?: string
 }) {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const navigate = useNavigate()
   const currency = (profile?.currency ?? 'INR') as SupportedCurrency

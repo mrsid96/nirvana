@@ -19,7 +19,7 @@ import {
 } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
 import { LoanCard } from '@/components/LoanCard'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import {
   calculateLoanMetrics,
@@ -41,7 +41,7 @@ import { ChartCard, DonutChart } from '@/components/charts'
 type LoansTab = 'loans' | 'activity'
 
 export function LoansPage() {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const currency = profile?.currency ?? 'INR'
   const asOf = todayIsoDate()
@@ -299,7 +299,7 @@ export function LoansPage() {
 export function LoanDetailPage() {
   const { loanId } = useParams()
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const { ensureLoanDetail } = finance
   const currency = profile?.currency ?? 'INR'

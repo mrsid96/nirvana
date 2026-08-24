@@ -1,14 +1,16 @@
-import { useAuth } from '@/contexts/AuthContext'
+import { useState } from 'react'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { MonthlyStatement } from '@/components/MonthlyStatement'
 import { DashboardSkeleton } from '@/components/Skeleton'
 import { useFinance } from '@/contexts/FinanceContext'
 import { currentMonthKey } from '@/lib/formatters/dates'
 
 export function StatementsPage() {
-  const { profile, settings, saveSettings } = useAuth()
+  const { profile, settings, saveSettings, isDemoMode } = useEffectiveAuth()
   const finance = useFinance()
+  const [demoMonth, setDemoMonth] = useState(settings?.dashboardMonth ?? currentMonthKey())
   const currency = profile?.currency ?? 'INR'
-  const month = settings?.dashboardMonth ?? currentMonthKey()
+  const month = isDemoMode ? demoMonth : (settings?.dashboardMonth ?? currentMonthKey())
 
   if (finance.loading) return <DashboardSkeleton />
 
@@ -26,7 +28,13 @@ export function StatementsPage() {
       <MonthlyStatement
         month={month}
         currency={currency}
-        onMonthChange={(next) => void saveSettings({ dashboardMonth: next })}
+        onMonthChange={(next) => {
+          if (isDemoMode) {
+            setDemoMonth(next)
+            return
+          }
+          void saveSettings({ dashboardMonth: next })
+        }}
       />
     </div>
   )

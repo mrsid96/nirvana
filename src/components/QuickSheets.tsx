@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { FormPanel } from '@/components/FormPanel'
 import { AmountInput, Button, Field, Input, Pill, Select } from '@/components/ui'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { todayIsoDate } from '@/lib/formatters/dates'
 import { parseAmountInput } from '@/lib/validation/parse'
@@ -37,7 +37,7 @@ export function QuickSheets({
   open: QuickSheet
   onOpenChange: (value: QuickSheet) => void
 }) {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const currency = profile?.currency ?? 'INR'
   const [amount, setAmount] = useState('')

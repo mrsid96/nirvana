@@ -4,8 +4,9 @@ import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { AppTourLayer } from '@/components/onboarding/AppTourLayer'
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 import { AppTourProvider } from '@/contexts/AppTourContext'
+import { DemoProvider, useDemo, useEffectiveAuth } from '@/contexts/DemoContext'
 import { FinanceProvider } from '@/contexts/FinanceContext'
 import { applyThemeToDocument, getStoredTheme, persistTheme } from '@/lib/theme'
 import type { ThemeMode } from '@/types/user'
@@ -70,7 +71,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
 }
 
 function ThemeSync({ children }: { children: ReactNode }) {
-  const { settings } = useAuth()
+  const { settings } = useEffectiveAuth()
   const theme: ThemeMode = settings?.theme ?? getStoredTheme() ?? 'light'
 
   useEffect(() => {
@@ -96,8 +97,14 @@ function Guard({
   children: ReactNode
   onboarding?: boolean
 }) {
-  const { user, profile, loading, configured } = useAuth()
-  if (loading) return <LoadingScreen />
+  const { user, profile, loading, configured } = useEffectiveAuth()
+  const { isDemoMode } = useDemo()
+
+  if (loading && !isDemoMode) return <LoadingScreen />
+  if (isDemoMode) {
+    if (onboarding) return <Navigate to="/" replace />
+    return children
+  }
   if (!configured || !user) {
     if (onboarding) return <Navigate to="/login" replace />
     return <LoginPage />
@@ -109,64 +116,81 @@ function Guard({
 }
 
 function Guest({ children }: { children: ReactNode }) {
-  const { user, profile, loading } = useAuth()
-  if (loading) return <LoadingScreen />
+  const { user, profile, loading } = useEffectiveAuth()
+  const { isDemoMode } = useDemo()
+
+  if (loading && !isDemoMode) return <LoadingScreen />
+  if (isDemoMode) return <Navigate to="/" replace />
   if (user && profile && !profile.onboardingComplete)
     return <Navigate to="/onboarding" replace />
   if (user && profile?.onboardingComplete) return <Navigate to="/" replace />
   return children
 }
 
+function AuthenticatedShell() {
+  const { isDemoMode } = useDemo()
+
+  if (isDemoMode) {
+    return <AppShell />
+  }
+
+  return (
+    <AppTourProvider>
+      <AppShell />
+      <AppTourLayer />
+    </AppTourProvider>
+  )
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ThemeSync>
-          <FinanceProvider>
-            <BrowserRouter>
-              <Suspense fallback={<PageFallback />}>
-                <Routes>
-                  <Route
-                    path="/login"
-                    element={
-                      <Guest>
-                        <LoginPage />
-                      </Guest>
-                    }
-                  />
-                  <Route
-                    path="/onboarding"
-                    element={
-                      <Guard onboarding>
-                        <OnboardingPage />
-                      </Guard>
-                    }
-                  />
-                  <Route
-                    element={
-                      <Guard>
-                        <AppTourProvider>
-                          <AppShell />
-                          <AppTourLayer />
-                        </AppTourProvider>
-                      </Guard>
-                    }
-                  >
-                    <Route index element={<DashboardPage />} />
-                    <Route path="wealth" element={<WealthPage />} />
-                    <Route path="wealth/:goalId" element={<GoalDetailPage />} />
-                    <Route path="loans" element={<LoansPage />} />
-                    <Route path="loans/:loanId" element={<LoanDetailPage />} />
-                    <Route path="statements" element={<StatementsPage />} />
-                    <Route path="profile" element={<ProfilePage />} />
-                  </Route>
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-            <Toaster position="top-center" richColors />
-          </FinanceProvider>
-        </ThemeSync>
+        <BrowserRouter>
+          <DemoProvider>
+            <ThemeSync>
+              <FinanceProvider>
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route
+                      path="/login"
+                      element={
+                        <Guest>
+                          <LoginPage />
+                        </Guest>
+                      }
+                    />
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <Guard onboarding>
+                          <OnboardingPage />
+                        </Guard>
+                      }
+                    />
+                    <Route
+                      element={
+                        <Guard>
+                          <AuthenticatedShell />
+                        </Guard>
+                      }
+                    >
+                      <Route index element={<DashboardPage />} />
+                      <Route path="wealth" element={<WealthPage />} />
+                      <Route path="wealth/:goalId" element={<GoalDetailPage />} />
+                      <Route path="loans" element={<LoansPage />} />
+                      <Route path="loans/:loanId" element={<LoanDetailPage />} />
+                      <Route path="statements" element={<StatementsPage />} />
+                      <Route path="profile" element={<ProfilePage />} />
+                    </Route>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+                <Toaster position="top-center" richColors />
+              </FinanceProvider>
+            </ThemeSync>
+          </DemoProvider>
+        </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>
   )
