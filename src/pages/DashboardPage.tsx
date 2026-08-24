@@ -223,7 +223,10 @@ export function DashboardPage() {
             }}
             message={healthMessage(health.overallLabel)}
           />
-          <ChartCard title="Wealth journey" subtitle="Historical wealth from your tracked activity">
+          <ChartCard
+            title="Wealth over time"
+            subtitle="Total assets month by month, built from the values you track"
+          >
             {wealthHistory.length >= 2 ? (
               <WealthGrowthChart
                 data={wealthHistory}
@@ -234,7 +237,7 @@ export function DashboardPage() {
               <EmptyState
                 emoji="📈"
                 title="Not enough history yet"
-                body="Your wealth journey will appear here as you continue tracking."
+                body="This chart shows how your total tracked wealth changes each month. Keep logging asset values and it will fill in over time."
               />
             )}
           </ChartCard>

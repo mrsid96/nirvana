@@ -256,7 +256,7 @@ export function ConfirmBar({
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-end bg-ink/30 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:place-items-center sm:pb-4">
+    <div className="fixed inset-0 z-[70] grid place-items-end bg-ink/30 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[2px] sm:place-items-center sm:pb-4 sm:pt-4">
       <div className="w-full max-w-md rounded-[24px] bg-surface p-5 dark:bg-surface-dark">
         <h3 className="text-lg font-semibold text-ink dark:text-white">{title}</h3>
         <p className="mt-2 text-sm text-ink-muted">{body}</p>

@@ -133,10 +133,10 @@ function AppShellContent() {
             <OfflineBanner />
             <FinanceErrorBanner />
           </div>
-          <main className="flex-1 px-5 pb-28 pt-2 lg:px-8 lg:pb-10 lg:pt-6">
+          <main className="flex-1 px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-2 lg:px-8 lg:pb-10 lg:pt-6">
             <Outlet />
             {showPwaInstall ? (
-              <div className="mt-8 flex justify-center pb-2 lg:mt-10">
+              <div className="relative z-0 mt-8 flex justify-center pb-4 lg:mt-10">
                 <PwaInstallLink />
               </div>
             ) : null}
