@@ -235,16 +235,22 @@ export function ProfilePage() {
       <section className="space-y-3">
         <SectionTitle title="Help & Guidance" />
         <Card className="space-y-3">
-          <button
+          <Button
             type="button"
-            className="flex min-h-11 w-full items-center gap-3 rounded-[14px] px-1 text-sm font-medium text-ink transition-colors hover:bg-ink/5 dark:text-white dark:hover:bg-white/5"
+            variant="secondary"
+            className="w-full justify-start gap-3 px-3"
             onClick={() => startTour({ replay: true })}
           >
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-accent/10 text-accent">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
               <Compass className="h-4 w-4" strokeWidth={2} />
             </span>
-            Take App Tour Again
-          </button>
+            <span className="text-left">
+              <span className="block font-semibold text-ink dark:text-white">Take App Tour Again</span>
+              <span className="block text-xs font-normal text-ink-muted">
+                Revisit the guided walkthrough of Dashboard, Wealth, Loans, and more
+              </span>
+            </span>
+          </Button>
         </Card>
       </section>
 
