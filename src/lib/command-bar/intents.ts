@@ -35,7 +35,10 @@ export function detectNavigation(text: string): { intent: CommandIntent; path: s
   for (const { pattern, intent, path } of NAVIGATION_PATTERNS) {
     if (pattern.test(text)) return { intent, path }
   }
-  // "Show my retirement" → open goal
+  const assetNav = text.match(/\b(show|open)\s+(?:my\s+)?(.+?(?:fund|etf|asset))/i)
+  if (assetNav) return { intent: 'OPEN_ASSET', path: '' }
+  const loanNav = text.match(/\b(show|open)\s+(?:my\s+)?(.+?\s*loan)/i)
+  if (loanNav) return { intent: 'OPEN_LOAN', path: '' }
   const goalNav = text.match(/\b(show|open|take me to)\s+(?:my\s+)?(.+)/i)
   if (goalNav) {
     const target = goalNav[2]?.toLowerCase() ?? ''
@@ -43,8 +46,6 @@ export function detectNavigation(text: string): { intent: CommandIntent; path: s
       return { intent: 'OPEN_GOAL', path: '' }
     }
   }
-  const loanNav = text.match(/\b(show|open)\s+(?:my\s+)?(.+?\s*loan)/i)
-  if (loanNav) return { intent: 'OPEN_LOAN', path: '' }
   return undefined
 }
 
@@ -63,6 +64,10 @@ export function scoreFinancialIntents(
   const normalized = text.toLowerCase()
   const signals: IntentSignal[] = []
 
+  if (/\bskip\b/.test(normalized) && /\b(scheduled|recurring|sip|emi)\b/.test(normalized)) {
+    signals.push({ intent: 'SKIP_SCHEDULED_TRANSACTION', weight: 0.95 })
+  }
+
   if (/\b(withdraw|withdrew|withdrawn)\b/.test(normalized)) {
     signals.push({ intent: 'RECORD_WITHDRAWAL', weight: 0.9, requiresPast: true })
   }
@@ -76,7 +81,9 @@ export function scoreFinancialIntents(
   }
 
   if (/\b(spent|spend|bought|purchase)\b/.test(normalized)) {
-    signals.push({ intent: 'ADD_EXPENSE', weight: 0.9 })
+    if (!isRecurring) {
+      signals.push({ intent: 'ADD_EXPENSE', weight: 0.9 })
+    }
   }
 
   if (
@@ -108,10 +115,6 @@ export function scoreFinancialIntents(
 
   if (/\b(create|new|add)\b.*\bloan\b/.test(normalized)) {
     signals.push({ intent: 'CREATE_LOAN', weight: 0.85 })
-  }
-
-  if (/\bskip\b/.test(normalized) && /\b(scheduled|recurring|sip|emi)\b/.test(normalized)) {
-    signals.push({ intent: 'SKIP_SCHEDULED_TRANSACTION', weight: 0.8 })
   }
 
   return signals.sort((a, b) => b.weight - a.weight)

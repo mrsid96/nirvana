@@ -1,4 +1,4 @@
-import { todayIsoDate } from '@/lib/formatters/dates'
+import { todayIsoDate, addMonthsIso } from '@/lib/formatters/dates'
 import { extractAmount } from '@/lib/command-bar/amount'
 import {
   extractAssetHint,
@@ -102,6 +102,18 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
         structured.navigationPath = `/loans/${loanMatch.match.id}`
       }
     }
+    if (nav.intent === 'OPEN_ASSET') {
+      const hint = extractAssetHint(text) ?? text
+      const assetMatch = matchAssets(hint, undefined, context)
+      if (assetMatch.match) {
+        structured.assetId = assetMatch.match.id
+        structured.assetName = assetMatch.match.name
+        structured.goalId = assetMatch.match.goalId
+        const goal = context.goals.find((g) => g.id === assetMatch.match!.goalId)
+        if (goal) structured.goalName = goal.name
+        structured.navigationPath = `/wealth/${assetMatch.match.goalId}`
+      }
+    }
     return buildResult(text, structured, 'ready', start)
   }
 
@@ -188,6 +200,96 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
   }
 
   if (incomeCategory) structured.category = incomeCategory
+
+  // Create & skip intents — specialized handling
+  if (intent === 'CREATE_GOAL') {
+    structured.goalName =
+      structured.goalName ?? extractGoalHint(text) ?? structured.description ?? 'New goal'
+    structured.targetDate = addMonthsIso(today, 240)
+    if (!amount) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'missing_amount',
+        question: 'What target amount for this goal?',
+        options: [],
+      })
+    }
+    return buildResult(text, structured, 'needs_confirmation', start)
+  }
+
+  if (intent === 'CREATE_ASSET') {
+    structured.assetName =
+      structured.assetName ?? extractAssetHint(text) ?? structured.description ?? 'New asset'
+    if (!structured.goalId) {
+      const goalMatch = matchGoals(extractGoalHint(text), context)
+      if (goalMatch.match) {
+        structured.goalId = goalMatch.match.id
+        structured.goalName = goalMatch.match.name
+      } else if (goalMatch.ambiguous) {
+        return buildResult(text, structured, 'needs_clarification', start, {
+          kind: 'ambiguous_goal',
+          question: 'Which goal should this asset belong to?',
+          options: toGoalOptions(goalMatch.matches),
+        })
+      } else if (!goalMatch.match) {
+        return buildResult(text, structured, 'needs_clarification', start, {
+          kind: 'missing_goal',
+          question: 'Which goal should this asset belong to?',
+          options: toGoalOptions(context.goals),
+        })
+      }
+    }
+    if (!amount) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'missing_amount',
+        question: 'What is the initial value of this asset?',
+        options: [],
+      })
+    }
+    return buildResult(text, structured, 'needs_confirmation', start)
+  }
+
+  if (intent === 'CREATE_LOAN') {
+    structured.loanName =
+      structured.loanName ?? extractLoanHint(text) ?? structured.description ?? 'New loan'
+    if (amount) {
+      structured.originalAmount = amount
+      structured.outstandingAmount = amount
+      structured.emiAmount = amount
+    }
+    if (!amount) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'missing_amount',
+        question: 'What is the loan amount or EMI?',
+        options: [],
+      })
+    }
+    return buildResult(text, structured, 'needs_confirmation', start)
+  }
+
+  if (intent === 'SKIP_SCHEDULED_TRANSACTION') {
+    const skipMatch = matchSkipOccurrence(text, context)
+    if (skipMatch.match) {
+      structured.scheduledOccurrenceId = skipMatch.match.id
+      structured.scheduledOccurrenceName = skipMatch.match.name
+      return buildResult(text, structured, 'needs_confirmation', start)
+    }
+    if (skipMatch.ambiguous || skipMatch.matches.length > 1) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'ambiguous_intent',
+        question: 'Which scheduled transaction should I skip?',
+        options: skipMatch.matches.map((o) => ({
+          id: o.id,
+          label: o.name,
+          type: 'occurrence' as const,
+        })),
+      })
+    }
+    return buildResult(text, structured, 'needs_clarification', start, {
+      kind: 'ambiguous_intent',
+      question: 'No due scheduled transactions found to skip.',
+      options: [],
+    })
+  }
 
   // Entity matching based on intent
   const needsGoal = [
@@ -360,6 +462,12 @@ export function applyClarification(
       updated.loanId = loan.id
       updated.loanName = loan.name
     }
+  } else if (optionType === 'occurrence') {
+    const occurrence = context.scheduledOccurrences?.find((o) => o.id === optionId)
+    if (occurrence) {
+      updated.scheduledOccurrenceId = occurrence.id
+      updated.scheduledOccurrenceName = occurrence.name
+    }
   } else if (optionType === 'action') {
     if (optionId === 'recurring') {
       if (updated.intent === 'RECORD_INVESTMENT') updated.intent = 'CREATE_RECURRING_INVESTMENT'
@@ -376,6 +484,25 @@ export function resolvePhaseAfterClarification(
 ): ParseResult['phase'] {
   if (isNavigationIntent(structured.intent) || isQueryIntent(structured.intent)) return 'ready'
   if (structured.intent === 'UNKNOWN') return 'unknown'
+
+  if (structured.intent === 'SKIP_SCHEDULED_TRANSACTION') {
+    return structured.scheduledOccurrenceId ? 'needs_confirmation' : 'needs_clarification'
+  }
+
+  if (structured.intent === 'CREATE_GOAL') {
+    if (!structured.amount) return 'needs_clarification'
+    return 'needs_confirmation'
+  }
+
+  if (structured.intent === 'CREATE_ASSET') {
+    if (!structured.amount || !structured.goalId) return 'needs_clarification'
+    return 'needs_confirmation'
+  }
+
+  if (structured.intent === 'CREATE_LOAN') {
+    if (!structured.amount) return 'needs_clarification'
+    return 'needs_confirmation'
+  }
 
   const needsGoal = ['RECORD_INVESTMENT', 'CREATE_RECURRING_INVESTMENT', 'RECORD_WITHDRAWAL'].includes(
     structured.intent,
@@ -399,4 +526,31 @@ export function resolvePhaseAfterClarification(
   if (needsLoan && !structured.loanId) return 'needs_clarification'
 
   return 'needs_confirmation'
+}
+
+function matchSkipOccurrence(
+  text: string,
+  context: ParserContext,
+): { match?: { id: string; name: string }; matches: Array<{ id: string; name: string }>; ambiguous: boolean } {
+  const pool = (context.scheduledOccurrences ?? []).filter(
+    (o) => o.status === 'DUE' || o.status === 'OVERDUE' || o.status === 'UPCOMING',
+  )
+  if (pool.length === 0) return { matches: [], ambiguous: false }
+
+  const normalized = text.toLowerCase()
+  const scored = pool
+    .map((o) => ({
+      item: o,
+      score: normalized.includes(o.name.toLowerCase()) ? 1 : 0,
+    }))
+    .filter((s) => s.score > 0)
+
+  if (scored.length === 1) {
+    return { match: scored[0]!.item, matches: [scored[0]!.item], ambiguous: false }
+  }
+  if (pool.length === 1) {
+    const only = pool[0]!
+    return { match: only, matches: [only], ambiguous: false }
+  }
+  return { matches: pool, ambiguous: pool.length > 1 }
 }

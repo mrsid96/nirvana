@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
 import { GoalCard } from '@/components/GoalCard'
 import { GoalFormFields } from '@/components/GoalFormFields'
+import { CommandBar } from '@/components/CommandBar'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { WealthSkeleton } from '@/components/Skeleton'
 import { Button, Card, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
@@ -162,6 +163,8 @@ export function WealthPage() {
           </Button>
         ) : null}
       </header>
+
+      <CommandBar contextKey="wealth" />
 
       <section
         className={

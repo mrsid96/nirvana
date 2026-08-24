@@ -204,6 +204,33 @@ describe('parseCommand — spec examples', () => {
     expect(r.structured.intent).toBe('OPEN_LOANS')
     expect(r.phase).toBe('ready')
   })
+
+  it('Skip retirement SIP', () => {
+    const r = parseCommand('Skip my retirement SIP', {
+      ...baseContext,
+      scheduledOccurrences: [
+        { id: 'occ1', name: 'Retirement SIP', status: 'DUE' },
+        { id: 'occ2', name: 'Home Loan EMI', status: 'UPCOMING' },
+      ],
+    })
+    expect(r.structured.intent).toBe('SKIP_SCHEDULED_TRANSACTION')
+    expect(r.structured.scheduledOccurrenceId).toBe('occ1')
+    expect(r.phase).toBe('needs_confirmation')
+  })
+
+  it('Create retirement goal 50 lakh', () => {
+    const r = parseCommand('Create retirement goal 50 lakh', baseContext)
+    expect(r.structured.intent).toBe('CREATE_GOAL')
+    expect(r.structured.amount).toBe(500000000)
+    expect(r.phase).toBe('needs_confirmation')
+  })
+
+  it('Open HDFC fund navigates to goal', () => {
+    const r = parseCommand('Open my HDFC fund', baseContext)
+    expect(r.structured.intent).toBe('OPEN_ASSET')
+    expect(r.structured.assetId).toBe('a1')
+    expect(r.structured.navigationPath).toBe('/wealth/g1')
+  })
 })
 
 describe('parseCommand — edge cases', () => {
