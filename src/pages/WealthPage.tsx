@@ -10,7 +10,7 @@ import { WealthSkeleton } from '@/components/Skeleton'
 import { Button, Card, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
 import { AllocationList, ChartCard, DonutChart } from '@/components/charts'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateGoalMetrics } from '@/lib/calculations/goals'
 import { allocationByGoal, totalWithdrawals, withdrawalsByAssetMap, withdrawalsByGoalMap, withdrawalsByMonth } from '@/lib/calculations/analytics'
@@ -23,7 +23,7 @@ import type { SupportedCurrency } from '@/types/user'
 type WealthTab = 'goals' | 'activity'
 
 export function WealthPage() {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const { ensureRecentActivity } = finance
   const currency = profile?.currency ?? 'INR'

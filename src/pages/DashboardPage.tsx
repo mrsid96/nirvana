@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/SegmentedControl'
 import { DashboardSkeleton } from '@/components/Skeleton'
 import { CommandBar } from '@/components/CommandBar'
 import { ChartCard, DonutChart, WealthGrowthChart } from '@/components/charts'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useOptionalAppTour } from '@/contexts/AppTourContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { calculateMonthlyCashFlow, cashFlowFromMonthlySummary } from '@/lib/calculations/cashflow'
@@ -41,7 +41,7 @@ function healthMessage(overall: string) {
 type HomeTab = 'month' | 'notifications'
 
 export function DashboardPage() {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const appTour = useOptionalAppTour()
   const finance = useFinance()
   const { ensureWealthHistory } = finance

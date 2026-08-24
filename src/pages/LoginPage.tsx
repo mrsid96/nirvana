@@ -1,54 +1,73 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import {
-  BarChart3,
-  LineChart,
-  PiggyBank,
-  Target,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { PwaInstallLink } from '@/components/PwaInstallLink'
 import { NirvanaLoaderLogo } from '@/components/NirvanaLogo'
+import { PwaInstallLink } from '@/components/PwaInstallLink'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
+import { useDemo } from '@/contexts/DemoContext'
 import { isFirebaseConfigured } from '@/firebase/config'
 import { cn } from '@/lib/utils'
 
-const capabilities = [
+const features = [
   {
-    icon: BarChart3,
-    title: 'Financial dashboard',
-    text: 'Wealth, investments, loans, net position, and free cash flow — one snapshot.',
+    emoji: '💰',
+    title: 'Net Worth',
+    text: 'See your complete financial position in one place.',
   },
   {
-    icon: Target,
-    title: 'Wealth goals',
-    text: 'Retirement, home, education — see if you are ahead, on track, or behind.',
+    emoji: '📈',
+    title: 'Investments',
+    text: 'Track your investments and understand how your wealth is growing.',
   },
   {
-    icon: TrendingUp,
-    title: 'Investments & assets',
-    text: 'Mutual funds, FDs, stocks, gold — allocation, gains, and monthly SIPs.',
+    emoji: '🏠',
+    title: 'Assets & Liabilities',
+    text: 'Keep track of assets such as your home, vehicle and other property alongside loans and liabilities.',
   },
   {
-    icon: Wallet,
-    title: 'Monthly cash flow',
-    text: 'Income, spend, investments, EMIs — then what remains each month.',
+    emoji: '💳',
+    title: 'Income & Expenses',
+    text: 'Understand where your money comes from and where it goes.',
+  },
+  {
+    emoji: '🎯',
+    title: 'Financial Goals',
+    text: 'Track progress toward important financial goals.',
+  },
+  {
+    emoji: '✍️',
+    title: 'Natural Language',
+    text: 'Tell Nirvana what happened with your money in simple language.',
+    examples: [
+      'Invested ₹50,000 in HDFC Flexi Cap.',
+      'Spent ₹25,000 on home interiors.',
+      'Received ₹2 lakh bonus.',
+    ],
   },
 ] as const
 
-const insights = [
-  { icon: PiggyBank, label: 'Savings rate' },
-  { icon: LineChart, label: 'Wealth growth' },
-  { icon: Target, label: 'Goal progress' },
-] as const
-
-const previewBars = [
-  { label: 'Income', value: '₹1.8L', color: 'bg-mint', delay: 'hero-bar-delay-1' },
-  { label: 'Spend', value: '₹64k', color: 'bg-peach', delay: 'hero-bar-delay-2' },
-  { label: 'Invest', value: '₹45k', color: 'bg-accent', delay: 'hero-bar-delay-3' },
-  { label: 'Left', value: '₹43k', color: 'bg-success', delay: 'hero-bar-delay-4' },
+const trustPoints = [
+  {
+    emoji: '🔐',
+    title: 'Protected',
+    text: "Your data is transmitted securely and stored using Firebase's encrypted infrastructure.",
+  },
+  {
+    emoji: '🚫',
+    title: 'No bank credentials required',
+    text: 'Nirvana does not require your bank password, UPI PIN, OTP or card credentials.',
+  },
+  {
+    emoji: '👤',
+    title: 'Private',
+    text: "Your financial information is associated with your account and protected by the application's authentication and data-access controls.",
+  },
+  {
+    emoji: '🗑️',
+    title: "You're in control",
+    text: 'You decide what to track and can clear your financial data whenever you choose.',
+  },
 ] as const
 
 function useRevealOnScroll(threshold = 0.12) {
@@ -125,39 +144,6 @@ function GoogleMark() {
   )
 }
 
-function SignInCta({
-  busy,
-  ready,
-  onSignIn,
-  className,
-}: {
-  busy: boolean
-  ready: boolean
-  onSignIn: (event: FormEvent) => void
-  className?: string
-}) {
-  return (
-    <div className={cn('flex w-full max-w-sm flex-col items-center', className)}>
-      <form onSubmit={onSignIn} className="w-full">
-        <Button type="submit" className="w-full shadow-[var(--shadow-fab)]" size="lg" disabled={busy || !ready}>
-          <GoogleMark />
-          {busy ? 'Opening Google…' : 'Continue with Google'}
-        </Button>
-      </form>
-      {!ready ? (
-        <p className="mt-3 text-center text-sm text-warning">
-          Add your Firebase environment variables to enable Google sign-in.
-        </p>
-      ) : (
-        <p className="mt-3 text-center text-xs text-ink-faint">Free · No card required</p>
-      )}
-      <div className="mt-4">
-        <PwaInstallLink />
-      </div>
-    </div>
-  )
-}
-
 function HeroBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -168,67 +154,85 @@ function HeroBackdrop() {
   )
 }
 
-function PreviewCard({ className }: { className?: string }) {
+function HeroCtas({
+  onTryDemo,
+  onSignIn,
+  signInBusy,
+  signInReady,
+}: {
+  onTryDemo: () => void
+  onSignIn: (event: FormEvent) => void
+  signInBusy: boolean
+  signInReady: boolean
+}) {
   return (
-    <div
-      className={cn(
-        'relative mx-auto w-full max-w-md overflow-hidden rounded-[28px] border border-ink/5 bg-surface p-5 shadow-[var(--shadow-soft)] dark:border-white/8 dark:bg-surface-dark',
-        className,
-      )}
-      aria-hidden
-    >
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-faint">
-            Net position
-          </p>
-          <p className="font-display mt-1 text-4xl font-semibold tracking-tight text-ink dark:text-white">
-            ₹12.4L
-          </p>
-          <p className="mt-1 text-sm text-mint">Wealth up · loans down</p>
-        </div>
-        <div className="hero-reveal hero-delay-6 rounded-[16px] bg-accent/8 px-3 py-2 text-right dark:bg-accent/15">
-          <p className="text-[10px] text-ink-muted">Home fund</p>
-          <p className="text-sm font-semibold text-ink dark:text-white">68% · Ahead</p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid grid-cols-4 gap-2 text-center">
-        {previewBars.map((item) => (
-          <div key={item.label} className="rounded-[14px] bg-canvas px-2 py-2.5 dark:bg-white/5">
-            <div className="mx-auto mb-2 h-1 w-8 overflow-hidden rounded-full bg-ink/8 dark:bg-white/10">
-              <div className={cn('h-full w-full rounded-full', item.color, 'hero-bar', item.delay)} />
-            </div>
-            <p className="text-[10px] text-ink-muted">{item.label}</p>
-            <p className="mt-0.5 text-xs font-semibold text-ink dark:text-white">{item.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
-        {insights.map((item, index) => (
-          <span
-            key={item.label}
-            className={cn(
-              'hero-reveal inline-flex items-center gap-1.5 rounded-full border border-ink/6 bg-canvas/80 px-2.5 py-1 text-[11px] font-medium text-ink-muted dark:border-white/8 dark:bg-white/5',
-              index === 0 && 'hero-delay-4',
-              index === 1 && 'hero-delay-5',
-              index === 2 && 'hero-delay-6',
-            )}
-          >
-            <item.icon className="h-3 w-3 text-accent" strokeWidth={2.2} />
-            {item.label}
-          </span>
-        ))}
-      </div>
+    <div className="flex w-full max-w-sm flex-col items-center gap-3">
+      <Button
+        type="button"
+        className="w-full shadow-[var(--shadow-fab)]"
+        size="lg"
+        onClick={onTryDemo}
+      >
+        Try Nirvana
+      </Button>
+      <form onSubmit={onSignIn} className="w-full">
+        <Button
+          type="submit"
+          variant="secondary"
+          className="w-full"
+          size="lg"
+          disabled={signInBusy || !signInReady}
+        >
+          <GoogleMark />
+          {signInBusy ? 'Opening Google…' : 'Sign in'}
+        </Button>
+      </form>
+      {!signInReady ? (
+        <p className="text-center text-sm text-warning">
+          Add your Firebase environment variables to enable Google sign-in.
+        </p>
+      ) : null}
     </div>
+  )
+}
+
+function TrustNote({ className }: { className?: string }) {
+  return (
+    <div className={cn('max-w-md text-center', className)}>
+      <p className="text-sm font-medium text-ink dark:text-white">
+        <span aria-hidden>🔒 </span>
+        Private by design
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+        Your financial data belongs to you. Nirvana doesn&apos;t require your bank password, UPI PIN,
+        OTP or banking credentials.
+      </p>
+    </div>
+  )
+}
+
+function LandingFooter() {
+  return (
+    <footer className="border-t border-ink/5 px-5 py-8 text-center dark:border-white/8">
+      <p className="text-xs text-ink-faint">© {new Date().getFullYear()} Nirvana</p>
+      <div className="mt-3 flex justify-center">
+        <PwaInstallLink />
+      </div>
+    </footer>
   )
 }
 
 export function LoginPage() {
   const { signIn, configured } = useAuth()
+  const { enterDemoMode } = useDemo()
+  const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const ready = configured && isFirebaseConfigured()
+
+  function onTryDemo() {
+    enterDemoMode()
+    navigate('/')
+  }
 
   async function onSignIn(event: FormEvent) {
     event.preventDefault()
@@ -246,68 +250,108 @@ export function LoginPage() {
     <div className="relative min-h-dvh max-w-[100vw] overflow-x-hidden">
       <HeroBackdrop />
 
-      {/* —— Hero —— */}
-      <section className="relative flex min-h-[min(100dvh,900px)] flex-col items-center justify-center px-5 pb-16 pt-safe text-center sm:px-8">
-        <NirvanaLoaderLogo className="hero-reveal-scale h-[200px] min-h-[200px] w-auto max-w-[min(100%,420px)]" />
+      {/* Hero */}
+      <section className="relative flex flex-col items-center px-5 pb-12 pt-safe text-center sm:px-8">
+        <NirvanaLoaderLogo className="hero-reveal-scale h-[160px] min-h-[160px] w-auto max-w-[min(100%,360px)] sm:h-[200px] sm:min-h-[200px]" />
 
-        <p className="hero-reveal hero-delay-1 mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-accent">
-          Your money. Your goals. Your wealth journey.
-        </p>
-
-        <h1 className="hero-reveal hero-delay-2 mt-5 max-w-3xl font-serif text-[2.15rem] font-medium leading-[1.12] tracking-tight text-ink sm:text-5xl lg:text-[3.25rem] dark:text-white">
-          The complete picture of{' '}
-          <span className="hero-shimmer-text italic">your wealth</span>.
+        <h1 className="hero-reveal hero-delay-1 mt-8 max-w-3xl font-serif text-[2rem] font-medium leading-[1.12] tracking-tight text-ink sm:text-5xl dark:text-white">
+          Your money. One clear picture.
         </h1>
 
-        <p className="hero-reveal hero-delay-3 mt-5 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-lg">
-          Wealth goals, investments, loans, income and expenses — brought together in one
-          simple, visual experience. Know where your money goes, what you are building, and
-          whether you are on track.
+        <p className="hero-reveal hero-delay-2 mt-5 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-lg">
+          Track your income, expenses, investments, assets, liabilities and net worth — all in one
+          simple place.
         </p>
 
-        <SignInCta
-          busy={busy}
-          ready={ready}
-          onSignIn={onSignIn}
-          className="hero-reveal hero-delay-4 mt-10"
-        />
+        <div className="hero-reveal hero-delay-3 mt-10">
+          <HeroCtas
+            onTryDemo={onTryDemo}
+            onSignIn={onSignIn}
+            signInBusy={busy}
+            signInReady={ready}
+          />
+        </div>
 
-        <PreviewCard className="hero-reveal-scale hero-delay-5 hero-float mt-14 lg:mt-16" />
+        <TrustNote className="hero-reveal hero-delay-4 mt-8" />
       </section>
 
-      {/* —— Capabilities —— */}
+      {/* Feature highlights */}
       <section className="relative border-t border-ink/5 bg-surface/50 px-5 py-14 sm:px-8 dark:border-white/8 dark:bg-surface-dark/30">
         <div className="mx-auto max-w-5xl">
           <RevealOnScroll>
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-ink-faint">
-              Everything connected
-            </p>
-            <h2 className="mt-3 text-center font-serif text-2xl font-medium text-ink sm:text-3xl dark:text-white">
-              Built for real financial life
+            <h2 className="text-center font-serif text-2xl font-medium text-ink sm:text-3xl dark:text-white">
+              Everything you need to understand your finances
             </h2>
           </RevealOnScroll>
 
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:gap-5">
-            {capabilities.map((item, index) => (
-              <RevealOnScroll key={item.title} delayMs={index * 90}>
-                <li className="group hero-card-lift rounded-[22px] border border-ink/5 bg-surface p-5 text-left shadow-[var(--shadow-soft)] hover:border-accent/15 dark:border-white/8 dark:bg-surface-dark">
-                  <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-accent/10 text-accent transition-transform duration-300 group-hover:scale-110">
-                    <item.icon className="h-5 w-5" strokeWidth={2} />
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+            {features.map((item, index) => (
+              <RevealOnScroll key={item.title} delayMs={index * 70}>
+                <li className="rounded-[22px] border border-ink/5 bg-surface p-5 text-left shadow-[var(--shadow-soft)] dark:border-white/8 dark:bg-surface-dark">
+                  <span className="text-2xl" aria-hidden>
+                    {item.emoji}
                   </span>
-                  <h3 className="mt-4 text-base font-semibold text-ink dark:text-white">{item.title}</h3>
+                  <h3 className="mt-3 text-base font-semibold text-ink dark:text-white">{item.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.text}</p>
+                  {'examples' in item && item.examples ? (
+                    <ul className="mt-3 space-y-1.5 border-l-2 border-accent/20 pl-3">
+                      {item.examples.map((example) => (
+                        <li key={example} className="text-xs italic text-ink-muted">
+                          &ldquo;{example}&rdquo;
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              </RevealOnScroll>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Trust section */}
+      <section className="relative px-5 py-14 sm:px-8">
+        <div className="mx-auto max-w-4xl">
+          <RevealOnScroll>
+            <h2 className="text-center font-serif text-2xl font-medium text-ink sm:text-3xl dark:text-white">
+              Your financial data deserves your trust.
+            </h2>
+          </RevealOnScroll>
+
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2">
+            {trustPoints.map((item, index) => (
+              <RevealOnScroll key={item.title} delayMs={index * 80}>
+                <li className="rounded-[20px] border border-ink/5 bg-canvas/60 p-5 dark:border-white/8 dark:bg-white/5">
+                  <p className="text-sm font-semibold text-ink dark:text-white">
+                    <span aria-hidden>{item.emoji} </span>
+                    {item.title}
+                  </p>
                   <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.text}</p>
                 </li>
               </RevealOnScroll>
             ))}
           </ul>
+        </div>
+      </section>
 
-          <RevealOnScroll delayMs={120}>
-            <p className="mt-12 text-center font-serif text-lg italic text-ink-muted">
-              Track today. Plan tomorrow. Build your future.
+      {/* Final CTA */}
+      <section className="relative border-t border-ink/5 bg-surface/50 px-5 py-14 sm:px-8 dark:border-white/8 dark:bg-surface-dark/30">
+        <div className="mx-auto flex max-w-lg flex-col items-center text-center">
+          <RevealOnScroll>
+            <h2 className="font-serif text-2xl font-medium text-ink sm:text-3xl dark:text-white">
+              See your financial life in one place.
+            </h2>
+            <p className="mt-3 text-base text-ink-muted">
+              Try Nirvana with sample data — no account required.
             </p>
+            <Button type="button" className="mt-6 shadow-[var(--shadow-fab)]" size="lg" onClick={onTryDemo}>
+              Try Nirvana
+            </Button>
           </RevealOnScroll>
         </div>
       </section>
+
+      <LandingFooter />
     </div>
   )
 }

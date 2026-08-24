@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { CommandBarCreateForm } from '@/components/CommandBarCreateForm'
 import { CommandBarEditForm } from '@/components/CommandBarEditForm'
 import { Button, Card, Input, Pill } from '@/components/ui'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { calculateMonthlyCashFlow } from '@/lib/calculations/cashflow'
@@ -56,7 +56,7 @@ export function CommandBar({
   assetId?: string
   loanId?: string
 }) {
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const navigate = useNavigate()
   const { ensureRecurringActivities } = finance

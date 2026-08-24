@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
+import { DEMO_USER_ID } from '@/demo/constants'
 import { useFinance } from '@/contexts/FinanceContext'
 import {
   detectMilestones,
@@ -13,12 +14,13 @@ import type { SupportedCurrency } from '@/types/user'
 import { cn } from '@/lib/utils'
 
 export function useMilestones(currency: SupportedCurrency) {
-  const { user } = useAuth()
+  const { user, isDemoMode } = useEffectiveAuth()
   const finance = useFinance()
   const asOf = todayIsoDate()
+  const uid = isDemoMode ? DEMO_USER_ID : user?.uid
 
   return useMemo(() => {
-    if (!user?.uid || finance.loading) return []
+    if (!uid || finance.loading) return []
     const all = detectMilestones({
       goals: finance.goals,
       assets: finance.assets,
@@ -26,9 +28,9 @@ export function useMilestones(currency: SupportedCurrency) {
       currency,
       asOf,
     })
-    const dismissed = loadDismissedMilestones(user.uid)
+    const dismissed = loadDismissedMilestones(uid)
     return all.filter((m) => !dismissed.has(m.id))
-  }, [user?.uid, finance.loading, finance.goals, finance.assets, finance.loans, currency, asOf])
+  }, [uid, finance.loading, finance.goals, finance.assets, finance.loans, currency, asOf])
 }
 
 export function MilestoneBanner({
@@ -38,15 +40,16 @@ export function MilestoneBanner({
   milestones: Milestone[]
   className?: string
 }) {
-  const { user } = useAuth()
+  const { user, isDemoMode } = useEffectiveAuth()
   const [visible, setVisible] = useState(milestones)
+  const uid = isDemoMode ? DEMO_USER_ID : user?.uid
 
   if (visible.length === 0) return null
 
   const current = visible[0]!
 
   function dismiss(id: string) {
-    if (user?.uid) dismissMilestone(user.uid, id)
+    if (uid) dismissMilestone(uid, id)
     setVisible((prev) => prev.filter((m) => m.id !== id))
   }
 

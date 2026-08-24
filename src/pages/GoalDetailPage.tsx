@@ -22,7 +22,7 @@ import {
 } from '@/components/ui'
 import { FormPanel } from '@/components/FormPanel'
 import { AllocationList, DonutChart } from '@/components/charts'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
 import {
   calculateGoalMetrics,
@@ -70,7 +70,7 @@ type GoalTab = 'overview' | 'assets' | 'activity'
 export function GoalDetailPage() {
   const { goalId } = useParams()
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile } = useEffectiveAuth()
   const finance = useFinance()
   const { ensureGoalDetail } = finance
   const currency = profile?.currency ?? 'INR'

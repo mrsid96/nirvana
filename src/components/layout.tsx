@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { tabItems, tabTitles } from '@/lib/navigation'
 import { quickActions } from '@/lib/quick-actions'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { DemoModeBanner } from '@/components/DemoModeBanner'
 import { FinanceErrorBanner } from '@/components/FinanceErrorBanner'
 import { FabMenu } from '@/components/FabMenu'
 import { QuickSheets } from '@/components/QuickSheets'
@@ -130,6 +131,7 @@ function AppShellContent() {
       <div className="mx-auto flex min-h-dvh w-full max-w-[1280px]">
         <DesktopSidebar />
         <div className="flex min-w-0 flex-1 flex-col pt-safe lg:pt-0">
+          <DemoModeBanner />
           <MobileHeader />
           <div className="px-5 pt-2 lg:px-8 lg:pt-4">
             <OfflineBanner />
