@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
 import { CircularProgress } from '@/components/CircularProgress'
+import { CommandBar } from '@/components/CommandBar'
 import { GoalFormFields } from '@/components/GoalFormFields'
 import { GoalJourney } from '@/components/GoalJourney'
 import { GoalDetailSkeleton } from '@/components/Skeleton'
@@ -463,6 +464,8 @@ export function GoalDetailPage() {
           </Button>
         </div>
       </header>
+
+      <CommandBar contextKey="goal" goalId={goalId} />
 
       <SegmentedControl
         value={tab}

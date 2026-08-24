@@ -1,15 +1,30 @@
-import { todayIsoDate } from '@/lib/formatters/dates'
+import { addMonthsIso, todayIsoDate } from '@/lib/formatters/dates'
 import type { StructuredIntent } from '@/lib/command-bar/types'
-import type { Asset } from '@/types/asset'
+import type { Asset, AssetCategory, AssetSource } from '@/types/asset'
 import type { ExpenseCategory } from '@/types/expense'
+import type { GoalPriority } from '@/types/goal'
 import type { RecurringActivity } from '@/types/recurring'
+import type { ScheduledOccurrence } from '@/types/recurring'
 import type { AssetTransaction } from '@/types/transaction'
 import type { Expense } from '@/types/expense'
 import type { Income } from '@/types/income'
-import type { LoanPayment } from '@/types/loan'
+import type { Loan, LoanPayment } from '@/types/loan'
 
 export interface CommandBarFinance {
   assets: Asset[]
+  goals: Array<{ id: string; name: string }>
+  scheduledOccurrences: ScheduledOccurrence[]
+  addGoal: (input: {
+    name: string
+    description?: string
+    targetAmount: number
+    startDate: string
+    targetDate: string
+    priority: GoalPriority
+    status: 'active' | 'completed' | 'paused'
+  }) => Promise<string>
+  addAsset: (input: Omit<Asset, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => Promise<string>
+  addLoan: (input: Omit<Loan, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => Promise<string>
   addExpense: (input: Omit<Expense, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt' | 'month'>) => Promise<void>
   addIncome: (input: Omit<Income, 'id' | 'isDeleted' | 'createdAt' | 'month' | 'updatedAt'>) => Promise<void>
   addTransaction: (
@@ -23,6 +38,7 @@ export interface CommandBarFinance {
   addRecurringActivity: (
     input: Omit<RecurringActivity, 'id' | 'isDeleted' | 'createdAt' | 'updatedAt'>,
   ) => Promise<string>
+  skipOccurrence: (occurrence: ScheduledOccurrence, reason?: string) => Promise<void>
 }
 
 /**
@@ -58,7 +74,7 @@ export async function executeConfirmedIntent(
       break
 
     case 'RECORD_INVESTMENT':
-    case 'RECORD_WITHDRAWAL':
+    case 'RECORD_WITHDRAWAL': {
       if (!intent.amount) throw new Error('Amount is required')
       const asset = findAsset(intent, finance)
       if (!asset) throw new Error('Choose an asset first')
@@ -74,6 +90,7 @@ export async function executeConfirmedIntent(
         asset,
       )
       break
+    }
 
     case 'RECORD_LOAN_PAYMENT':
       if (!intent.amount) throw new Error('Amount is required')
@@ -107,21 +124,101 @@ export async function executeConfirmedIntent(
 
     case 'CREATE_RECURRING_EXPENSE':
       if (!intent.amount) throw new Error('Amount is required')
-      await finance.addRecurringActivity({
-        type: 'LOAN_PAYMENT',
-        name: intent.loanName ? `${intent.loanName} EMI` : 'Monthly payment',
-        amount: intent.amount,
-        frequency: 'MONTHLY',
-        scheduledDay: intent.dayOfMonth ?? 1,
-        startDate: intent.date ?? today,
-        loanId: intent.loanId,
-        status: 'ACTIVE',
-        sourceEntityType: 'manual',
+      if (intent.loanId) {
+        await finance.addRecurringActivity({
+          type: 'LOAN_PAYMENT',
+          name: intent.loanName ? `${intent.loanName} EMI` : 'Monthly payment',
+          amount: intent.amount,
+          frequency: 'MONTHLY',
+          scheduledDay: intent.dayOfMonth ?? 1,
+          startDate: intent.date ?? today,
+          loanId: intent.loanId,
+          status: 'ACTIVE',
+          sourceEntityType: 'manual',
+        })
+      } else {
+        await finance.addRecurringActivity({
+          type: 'EXPENSE',
+          name:
+            intent.description ??
+            (intent.category ? `${intent.category} expense` : 'Monthly expense'),
+          amount: intent.amount,
+          frequency: 'MONTHLY',
+          scheduledDay: intent.dayOfMonth ?? 1,
+          startDate: intent.date ?? today,
+          expenseCategory: (intent.category as ExpenseCategory) ?? 'Other',
+          status: 'ACTIVE',
+          sourceEntityType: 'manual',
+        })
+      }
+      break
+
+    case 'CREATE_GOAL':
+      if (!intent.amount) throw new Error('Target amount is required')
+      const goalName = intent.goalName ?? 'New goal'
+      await finance.addGoal({
+        name: goalName,
+        description: intent.description,
+        targetAmount: intent.amount,
+        startDate: today,
+        targetDate: intent.targetDate ?? addMonthsIso(today, 240),
+        priority: 'medium',
+        status: 'active',
       })
       break
 
-  default:
-    throw new Error(`Cannot execute intent: ${intent.intent}`)
+    case 'CREATE_ASSET':
+      if (!intent.amount) throw new Error('Amount is required')
+      if (!intent.goalId) throw new Error('Choose a goal first')
+      const assetName = intent.assetName ?? 'New asset'
+      const category = inferAssetCategory(assetName)
+      const source = mapAssetSource(intent.source)
+      await finance.addAsset({
+        goalId: intent.goalId,
+        name: assetName,
+        category,
+        source,
+        investmentType: intent.frequency ? 'SIP' : 'LUMP_SUM',
+        investedAmount: intent.amount,
+        currentValue: intent.amount,
+        totalWithdrawals: 0,
+        monthlyInvestment: intent.frequency ? intent.amount : undefined,
+        plannedInvestmentDay: intent.frequency ? intent.dayOfMonth ?? 1 : undefined,
+        isActive: true,
+      })
+      break
+
+    case 'CREATE_LOAN':
+      if (!intent.amount) throw new Error('Amount is required')
+      const loanName = intent.loanName ?? 'New loan'
+      const bank = intent.source ?? 'Bank'
+      await finance.addLoan({
+        name: loanName,
+        description: intent.description,
+        bank,
+        originalAmount: intent.amount,
+        outstandingAmount: intent.amount,
+        interestRate: 8,
+        tenureMonths: 240,
+        startDate: today,
+        emiAmount: intent.amount,
+        emiDate: intent.dayOfMonth ?? 5,
+        deductionBank: bank,
+        status: 'ACTIVE',
+      })
+      break
+
+    case 'SKIP_SCHEDULED_TRANSACTION':
+      if (!intent.scheduledOccurrenceId) throw new Error('Choose a scheduled transaction')
+      const occurrence = finance.scheduledOccurrences.find(
+        (o) => o.id === intent.scheduledOccurrenceId,
+      )
+      if (!occurrence) throw new Error('Scheduled transaction not found')
+      await finance.skipOccurrence(occurrence, intent.description)
+      break
+
+    default:
+      throw new Error(`Cannot execute intent: ${intent.intent}`)
   }
 }
 
@@ -134,4 +231,24 @@ function findAsset(intent: StructuredIntent, finance: CommandBarFinance): Asset 
     return goalAssets[0]
   }
   return finance.assets.find((a) => !a.isDeleted)
+}
+
+function mapAssetSource(raw?: string): AssetSource {
+  const value = (raw ?? '').toUpperCase()
+  if (value === 'ZERODHA' || value === 'GROWW' || value === 'BANK') return value
+  if (raw?.toLowerCase().includes('zerodha')) return 'ZERODHA'
+  if (raw?.toLowerCase().includes('groww')) return 'GROWW'
+  if (raw?.toLowerCase().includes('bank')) return 'BANK'
+  return 'OTHER'
+}
+
+function inferAssetCategory(name: string): AssetCategory {
+  const n = name.toLowerCase()
+  if (n.includes('etf')) return 'ETF'
+  if (n.includes('fd') || n.includes('deposit')) return 'FD'
+  if (n.includes('stock')) return 'STOCK'
+  if (n.includes('gold')) return 'GOLD'
+  if (n.includes('ppf')) return 'PPF'
+  if (n.includes('nps')) return 'NPS'
+  return 'MF'
 }
