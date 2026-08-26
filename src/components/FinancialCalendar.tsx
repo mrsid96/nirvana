@@ -1,4 +1,4 @@
-import { Calendar, RefreshCw } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { useMemo } from 'react'
 import { formatDisplayDate, todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'

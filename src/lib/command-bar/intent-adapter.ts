@@ -5,8 +5,12 @@ import {
 import type {
   AssetActionData,
   EntityParseResult,
+  ExpenseActionData,
   GoalActionData,
+  IncomeActionData,
+  LoanActionData,
   ParsedFinancialAction,
+  WithdrawActionData,
 } from '@/lib/command-bar/entity-model'
 import { addMonthsIso, todayIsoDate } from '@/lib/formatters/dates'
 import type { CommandIntent, StructuredIntent } from '@/lib/command-bar/types'
@@ -35,52 +39,56 @@ export function entityActionsToStructuredIntent(
   const top = actions[0]!
 
   if (top.entity === 'INCOME') {
+    const data = top.data as IncomeActionData
     return {
       intent: 'ADD_INCOME',
       confidence: top.confidence,
       parserMethod: result.parserMethod,
-      amount: top.data.amount,
-      category: top.data.type,
-      date: top.data.date,
-      frequency: top.data.frequency === 'monthly' ? 'MONTHLY' : undefined,
+      amount: data.amount,
+      category: data.type,
+      date: data.date,
+      frequency: data.frequency === 'monthly' ? 'MONTHLY' : undefined,
       currency: context.currency,
     }
   }
 
   if (top.entity === 'EXPENSE') {
+    const data = top.data as ExpenseActionData
     return {
       intent: 'ADD_EXPENSE',
       confidence: top.confidence,
       parserMethod: result.parserMethod,
-      amount: top.data.amount,
-      category: top.data.category,
-      date: top.data.date,
-      frequency: top.data.frequency === 'monthly' ? 'MONTHLY' : undefined,
+      amount: data.amount,
+      category: data.category,
+      date: data.date,
+      frequency: data.frequency === 'monthly' ? 'MONTHLY' : undefined,
       currency: context.currency,
     }
   }
 
   if (top.entity === 'WITHDRAW') {
+    const data = top.data as WithdrawActionData
     return {
       intent: 'RECORD_WITHDRAWAL',
       confidence: top.confidence,
       parserMethod: result.parserMethod,
-      amount: top.data.amount,
-      goalName: top.data.goal,
-      assetName: typeof top.data.asset === 'string' ? top.data.asset : undefined,
-      date: top.data.date,
+      amount: data.amount,
+      goalName: data.goal,
+      assetName: typeof data.asset === 'string' ? data.asset : undefined,
+      date: data.date,
       currency: context.currency,
     }
   }
 
   if (top.entity === 'LOAN') {
+    const data = top.data as LoanActionData
     if (top.action === 'UPDATE') {
       return {
         intent: 'RECORD_LOAN_PAYMENT',
         confidence: top.confidence,
         parserMethod: result.parserMethod,
-        amount: top.data.repayment,
-        date: top.data.date,
+        amount: data.repayment,
+        date: data.date,
         currency: context.currency,
       }
     }
@@ -88,14 +96,14 @@ export function entityActionsToStructuredIntent(
       intent: 'CREATE_LOAN',
       confidence: top.confidence,
       parserMethod: result.parserMethod,
-      loanName: top.data.type?.replace(/_/g, ' ') ?? 'New loan',
-      originalAmount: top.data.amount ?? top.data.outstanding_amount,
-      outstandingAmount: top.data.outstanding_amount ?? top.data.amount,
-      emiAmount: top.data.emi,
-      tenureMonths: top.data.tenure ? Number(top.data.tenure.replace(/\D/g, '')) : undefined,
-      interestRate: top.data.interest_rate,
-      bank: top.data.lender,
-      amount: top.data.amount ?? top.data.emi,
+      loanName: data.type?.replace(/_/g, ' ') ?? 'New loan',
+      originalAmount: data.amount ?? data.outstanding_amount,
+      outstandingAmount: data.outstanding_amount ?? data.amount,
+      emiAmount: data.emi,
+      tenureMonths: data.tenure ? Number(data.tenure.replace(/\D/g, '')) : undefined,
+      interestRate: data.interest_rate,
+      bank: data.lender,
+      amount: data.amount ?? data.emi,
       dayOfMonth: 5,
       currency: context.currency,
     }

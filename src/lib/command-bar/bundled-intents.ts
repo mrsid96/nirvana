@@ -88,10 +88,6 @@ function extractWorthAmount(text: string, currency: SupportedCurrency): number |
   return undefined
 }
 
-function extractRecurringAssetName(text: string): string {
-  return inferRecurringAsset(text).assetName
-}
-
 function extractNewGoalName(text: string): string | undefined {
   const match = text.match(/\bgoal\s+([a-z][\w]+)/i)
   if (!match?.[1]) return undefined
