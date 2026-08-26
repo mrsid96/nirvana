@@ -261,11 +261,6 @@ const featureCards = [
     title: 'Natural language',
     stat: 'Type & go',
     text: 'Describe what happened in plain language — Nirvana detects intent and extracts the details to act on.',
-    examples: [
-      'Invested 50,000 in HDFC Flexi Cap.',
-      'Spent 25,000 on home interiors.',
-      'Taking a 30L home loan at 8.5% for 7 years.',
-    ],
   },
 ]
 
@@ -388,15 +383,15 @@ export function LandingHero({
           </div>
         </div>
 
-        <div className="hero-reveal-scale hero-delay-5 relative mx-auto w-full max-w-[440px] lg:max-w-none">
-          <div className="landing-preview-ring absolute -inset-3 rounded-[32px] opacity-70" aria-hidden />
-          <div className="absolute -left-8 top-6 hidden h-32 w-32 rounded-full bg-gradient-to-br from-mint/30 to-success/10 blur-3xl lg:block" />
-          <div className="absolute -right-6 bottom-4 hidden h-36 w-36 rounded-full bg-gradient-to-br from-accent/30 to-violet-500/10 blur-3xl lg:block" />
-          <div className="absolute -right-2 top-20 hidden rounded-[18px] border border-yellow/25 bg-yellow/15 px-3 py-2 backdrop-blur-sm lg:block">
+        <div className="hero-reveal-scale hero-delay-5 relative isolate mx-auto w-full max-w-[440px] lg:max-w-none">
+          <div className="landing-preview-ring absolute -inset-3 z-0 rounded-[32px] opacity-70" aria-hidden />
+          <div className="absolute -left-8 top-6 -z-10 hidden h-32 w-32 rounded-full bg-gradient-to-br from-mint/30 to-success/10 blur-3xl lg:block" aria-hidden />
+          <div className="absolute -right-6 bottom-4 -z-10 hidden h-36 w-36 rounded-full bg-gradient-to-br from-accent/30 to-violet-500/10 blur-3xl lg:block" aria-hidden />
+          <div className="absolute -right-3 top-6 z-20 hidden rounded-[18px] border border-yellow/30 bg-yellow/20 px-3 py-2 shadow-[0_8px_24px_rgba(244,201,93,0.25)] backdrop-blur-md lg:block">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">Bonus</p>
             <p className="font-display text-lg font-bold text-ink dark:text-white">2L received</p>
           </div>
-          <HeroPreview className="hero-float relative" />
+          <HeroPreview className="hero-float relative z-10" />
         </div>
       </div>
 
@@ -624,9 +619,10 @@ export function LandingFinalCta({ onTryDemo }: { onTryDemo: () => void }) {
   return (
     <section className="px-5 py-16 sm:px-8 sm:py-20">
       <div className="mx-auto max-w-3xl">
-        <div className="landing-card relative overflow-hidden rounded-[28px] border border-accent/20 bg-gradient-to-br from-accent via-violet-600 to-mint p-8 text-center text-white shadow-[0_24px_80px_rgba(102,87,232,0.35)] sm:p-10">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-yellow/20 blur-2xl" />
+        <div className="landing-cta-panel landing-card relative overflow-hidden rounded-[28px] border border-accent/20 p-8 text-center text-white shadow-[0_24px_80px_rgba(102,87,232,0.35)] sm:p-10">
+          <div className="landing-cta-orb landing-cta-orb-a pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/15 blur-2xl" aria-hidden />
+          <div className="landing-cta-orb landing-cta-orb-b pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-yellow/25 blur-2xl" aria-hidden />
+          <div className="landing-cta-orb landing-cta-orb-c pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/20 blur-3xl" aria-hidden />
           <p className="relative text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
             Try before you use
           </p>

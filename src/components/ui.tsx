@@ -14,7 +14,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-50 active:scale-[0.98]',
+        'inline-flex cursor-pointer items-center justify-center gap-2 font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]',
         size === 'default' && 'min-h-11 rounded-[14px] px-4 text-sm',
         size === 'lg' && 'min-h-[52px] rounded-[16px] px-6 text-base',
         variant === 'primary' &&

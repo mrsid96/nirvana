@@ -395,6 +395,66 @@ body {
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
+.landing-cta-panel {
+  background: linear-gradient(
+    135deg,
+    #6657e8 0%,
+    #7c3aed 35%,
+    #5b4cdb 55%,
+    #57c7a3 100%
+  );
+  background-size: 220% 220%;
+  animation: landing-cta-gradient 10s ease-in-out infinite;
+}
+
+.landing-cta-orb {
+  animation: landing-cta-float 7s ease-in-out infinite;
+}
+
+.landing-cta-orb-b {
+  animation-delay: 1.2s;
+}
+
+.landing-cta-orb-c {
+  animation-delay: 2.4s;
+  animation-name: landing-cta-pulse;
+  animation-duration: 6s;
+}
+
+@keyframes landing-cta-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@keyframes landing-cta-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes landing-cta-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: translate(12px, -10px) scale(1.08);
+    opacity: 1;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .landing-intent-row:hover {
     transform: translateX(4px);
