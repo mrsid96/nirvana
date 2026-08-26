@@ -14,7 +14,7 @@ export function WelcomeScreen() {
       <div className="w-full max-w-md text-center">
         <div className="rounded-[28px] border border-ink/8 bg-surface p-8 shadow-[var(--shadow-soft)] dark:border-white/10 dark:bg-surface-dark">
           <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-white">
-            Welcome to Nirvana 👋
+            Welcome to Nirvana
           </h1>
           <p className="mt-3 text-base text-ink-muted">
             Your money, goals and wealth — all in one place.

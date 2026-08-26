@@ -28,8 +28,11 @@ import {
   toAssetOptions,
   toGoalOptions,
   toLoanOptions,
+  findEntityMentions,
+  boostIntentsFromMentions,
 } from '@/lib/command-bar/matcher'
-import { isNavigationIntent, isQueryIntent } from '@/lib/command-bar/labels'
+import { isNavigationIntent, isQueryIntent, INTENT_LABELS } from '@/lib/command-bar/labels'
+import { splitCompoundInput, summarizeClause } from '@/lib/command-bar/compound'
 import type {
   CommandIntent,
   ParseResult,
@@ -38,6 +41,63 @@ import type {
 } from '@/lib/command-bar/types'
 
 const DEV = import.meta.env.DEV
+
+export async function parseCommandAsync(input: string, context: ParserContext): Promise<ParseResult> {
+  const clauses = splitCompoundInput(input)
+  if (clauses.length > 1) {
+    const clauseResults = clauses.map((clause) => parseCommand(clause, context))
+    const valid = clauseResults.filter((result) => result.phase !== 'unknown')
+    if (valid.length >= 2) {
+      return buildCompoundClarification(input, clauses, clauseResults)
+    }
+  }
+
+  const deterministic = parseCommand(input, context)
+
+  if (deterministic.phase !== 'unknown' && deterministic.structured.confidence >= 0.5) {
+    return deterministic
+  }
+
+  if (clauses.length > 1) {
+    const clauseResults = clauses.map((clause) => parseCommand(clause, context))
+    const valid = clauseResults.filter((result) => result.phase !== 'unknown')
+    if (valid.length === 1) {
+      return valid[0]!
+    }
+  }
+
+  return deterministic
+}
+
+function buildCompoundClarification(
+  input: string,
+  clauses: string[],
+  results: ParseResult[],
+): ParseResult {
+  const start = performance.now()
+  return buildResult(
+    input,
+    { intent: 'UNKNOWN', confidence: 0.4, parserMethod: 'compound' },
+    'needs_clarification',
+    start,
+    {
+      kind: 'compound_action',
+      question: 'I found multiple actions. Which one should I do first?',
+      options: clauses.map((clause, index) => {
+        const result = results[index]
+        const intentLabel =
+          result && result.phase !== 'unknown'
+            ? INTENT_LABELS[result.structured.intent]
+            : 'Action'
+        return {
+          id: clause,
+          label: `${intentLabel} — ${summarizeClause(clause)}`,
+          type: 'compound' as const,
+        }
+      }),
+    },
+  )
+}
 
 export function parseCommand(input: string, context: ParserContext): ParseResult {
   const start = performance.now()
@@ -56,7 +116,7 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
       confidence: 0.9,
       parserMethod: 'query',
     }
-    const goalHint = extractGoalHint(text)
+    const goalHint = extractGoalHint(text, context.goals)
     if (goalHint) {
       const gm = matchGoals(goalHint, context)
       if (gm.match) {
@@ -85,7 +145,7 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
       parserMethod: 'navigation',
     }
     if (nav.intent === 'OPEN_GOAL') {
-      const goalHint = extractGoalHint(text) ?? text
+      const goalHint = extractGoalHint(text, context.goals) ?? text
       const goalMatch = matchGoals(goalHint, context)
       if (goalMatch.match) {
         structured.goalId = goalMatch.match.id
@@ -156,15 +216,19 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
     )
   }
 
-  const signals = scoreFinancialIntents(text, isRecurring, isPast)
+  const signals = boostIntentsFromMentions(
+    scoreFinancialIntents(text, isRecurring, isPast),
+    findEntityMentions(text, context),
+    text,
+  )
   let topSignal = signals[0]
 
   // Context-aware loan payment: on loan detail page, "Paid 45k today" → loan payment
   if (
-    !topSignal &&
     context.currentLoanId &&
     /\b(paid|payment)\b/i.test(text) &&
-    extractAmount(text, context.currency)
+    extractAmount(text, context.currency) &&
+    (!topSignal || topSignal.intent === 'ADD_EXPENSE')
   ) {
     topSignal = { intent: 'RECORD_LOAN_PAYMENT', weight: 0.88 }
   }
@@ -179,7 +243,7 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
   const amount = extractAmount(text, context.currency)
   const date = extractDate(text, today) ?? (isPast ? today : undefined)
   const dayOfMonth = extractDayOfMonth(text)
-  const goalHint = extractGoalHint(text)
+  const goalHint = extractGoalHint(text, context.goals)
   const loanHint = extractLoanHint(text)
   const assetHint = extractAssetHint(text)
   const category = extractExpenseCategory(text)
@@ -201,10 +265,32 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
 
   if (incomeCategory) structured.category = incomeCategory
 
+  return enrichStructuredIntent(text, structured, context, start)
+}
+
+function enrichStructuredIntent(
+  text: string,
+  structured: StructuredIntent,
+  context: ParserContext,
+  start: number,
+): ParseResult {
+  const today = context.today ?? todayIsoDate()
+  const intent = structured.intent
+  const amount = structured.amount
+  const goalHint = structured.goalName ?? extractGoalHint(text, context.goals)
+  const loanHint = structured.loanName ?? extractLoanHint(text)
+  const assetHint = structured.assetName ?? extractAssetHint(text)
+
+  if (!structured.date) {
+    structured.date = extractDate(text, today)
+  } else if (structured.date === 'today') {
+    structured.date = today
+  }
+
   // Create & skip intents — specialized handling
   if (intent === 'CREATE_GOAL') {
     structured.goalName =
-      structured.goalName ?? extractGoalHint(text) ?? structured.description ?? 'New goal'
+      structured.goalName ?? extractGoalHint(text, context.goals) ?? structured.description ?? 'New goal'
     structured.targetDate = addMonthsIso(today, 240)
     if (!amount) {
       return buildResult(text, structured, 'needs_clarification', start, {
@@ -220,7 +306,7 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
     structured.assetName =
       structured.assetName ?? extractAssetHint(text) ?? structured.description ?? 'New asset'
     if (!structured.goalId) {
-      const goalMatch = matchGoals(extractGoalHint(text), context)
+      const goalMatch = matchGoals(extractGoalHint(text, context.goals), context)
       if (goalMatch.match) {
         structured.goalId = goalMatch.match.id
         structured.goalName = goalMatch.match.name
@@ -399,7 +485,6 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
     })
   }
 
-  // Ready for confirmation
   return buildResult(text, structured, 'needs_confirmation', start)
 }
 

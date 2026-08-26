@@ -37,7 +37,7 @@ export function getQuickSheetSuccessMessage(sheet: Exclude<QuickSheet, null>) {
   const messages: Record<Exclude<QuickSheet, null>, string> = {
     expense: 'Expense logged.',
     income: 'Income added. Nice.',
-    investment: 'Investment added. Nice move. ✨',
+    investment: 'Investment added. Nice move.',
     withdrawal: 'Withdrawal recorded.',
     'loan-payment': 'Payment recorded. Debt going down.',
   }

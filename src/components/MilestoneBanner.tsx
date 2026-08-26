@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { DEMO_USER_ID } from '@/demo/constants'
 import { useFinance } from '@/contexts/FinanceContext'
+import { MILESTONE_ICONS } from '@/lib/visual-icons'
 import {
   detectMilestones,
   dismissMilestone,
@@ -47,6 +48,7 @@ export function MilestoneBanner({
   if (visible.length === 0) return null
 
   const current = visible[0]!
+  const Icon = MILESTONE_ICONS[current.icon]
 
   function dismiss(id: string) {
     if (uid) dismissMilestone(uid, id)
@@ -64,7 +66,9 @@ export function MilestoneBanner({
         >
           <X className="h-4 w-4" />
         </button>
-        <p className="text-2xl">{current.emoji}</p>
+        <div className="grid h-10 w-10 place-items-center rounded-full bg-white/60 text-accent dark:bg-white/10">
+          <Icon className="h-5 w-5" strokeWidth={2} />
+        </div>
         <p className="mt-1 pr-8 font-semibold text-ink dark:text-white">{current.title}</p>
         <p className="mt-0.5 text-sm text-ink-muted">{current.body}</p>
         {visible.length > 1 ? (

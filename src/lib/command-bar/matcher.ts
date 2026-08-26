@@ -145,3 +145,71 @@ export function toLoanOptions(loans: Array<{ id: string; name: string }>): Clari
   options.push({ id: '__create__', label: 'Create new loan', type: 'create' })
   return options
 }
+
+export interface EntityMentions {
+  goal?: { id: string; name: string }
+  asset?: { id: string; name: string; goalId: string }
+  loan?: { id: string; name: string }
+}
+
+export function findEntityMentions(text: string, context: ParserContext): EntityMentions {
+  const normalized = normalize(text)
+  const mentions: EntityMentions = {}
+
+  let bestGoalScore = 0
+  for (const goal of context.goals) {
+    const score = scoreMatch(normalized, goal.name)
+    if (score >= 0.5 && score > bestGoalScore) {
+      bestGoalScore = score
+      mentions.goal = goal
+    }
+  }
+
+  let bestAssetScore = 0
+  for (const asset of context.assets) {
+    const score = scoreMatch(normalized, asset.name)
+    if (score >= 0.5 && score > bestAssetScore) {
+      bestAssetScore = score
+      mentions.asset = asset
+    }
+  }
+
+  let bestLoanScore = 0
+  for (const loan of context.loans) {
+    const score = scoreMatch(normalized, loan.name)
+    if (score >= 0.5 && score > bestLoanScore) {
+      bestLoanScore = score
+      mentions.loan = loan
+    }
+  }
+
+  return mentions
+}
+
+interface IntentBoost {
+  intent: import('@/lib/command-bar/types').CommandIntent
+  weight: number
+}
+
+export function boostIntentsFromMentions(
+  signals: IntentBoost[],
+  mentions: EntityMentions,
+  text: string,
+): IntentBoost[] {
+  const boosted = [...signals]
+  const normalized = text.toLowerCase()
+
+  if (mentions.asset) {
+    boosted.push({ intent: 'RECORD_INVESTMENT', weight: 0.82 })
+  }
+
+  if (mentions.goal && /\b(invest|invested|sip|added|put)\b/.test(normalized)) {
+    boosted.push({ intent: 'RECORD_INVESTMENT', weight: 0.78 })
+  }
+
+  if (mentions.loan && /\b(paid|payment|emi)\b/.test(normalized)) {
+    boosted.push({ intent: 'RECORD_LOAN_PAYMENT', weight: 0.86 })
+  }
+
+  return boosted.sort((a, b) => b.weight - a.weight)
+}

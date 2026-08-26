@@ -27,6 +27,7 @@ import {
 import {
   applyClarification,
   parseCommand,
+  parseCommandAsync,
   resolvePhaseAfterClarification,
 } from '@/lib/command-bar/parser'
 import { resolveQuery } from '@/lib/command-bar/queries'
@@ -70,6 +71,7 @@ export function CommandBar({
   const [editDraft, setEditDraft] = useState<StructuredIntent | null>(null)
   const [editAmount, setEditAmount] = useState('')
   const [busy, setBusy] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
 
@@ -158,7 +160,7 @@ export function CommandBar({
     lang: speechLocaleForCurrency(currency),
     onFinalTranscript: (transcript) => {
       setText(transcript)
-      processInput(transcript)
+      void processInput(transcript)
     },
     onError: (message) => toast.error(message),
   })
@@ -188,6 +190,7 @@ export function CommandBar({
     setEditDraft(null)
     setEditAmount('')
     setBusy(false)
+    setParsing(false)
     setConfirmError(null)
   }, [speech.stop])
 
@@ -199,8 +202,24 @@ export function CommandBar({
     setConfirmError(null)
   }
 
-  function processInput(input: string) {
-    const result = parseCommand(input, parserContext)
+  async function processInput(input: string) {
+    setParsing(true)
+    setConfirmError(null)
+    try {
+      const result = await parseCommandAsync(input, parserContext)
+      setParseResult(result)
+      setBarState('result')
+
+      if (result.phase === 'ready') {
+        handleReadyResult(result.structured)
+      }
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function processClauseInput(clause: string) {
+    const result = parseCommand(clause, parserContext)
     setParseResult(result)
     setBarState('result')
     setConfirmError(null)
@@ -241,12 +260,17 @@ export function CommandBar({
   function onSubmit(event?: FormEvent) {
     event?.preventDefault()
     const trimmed = text.trim()
-    if (!trimmed) return
-    processInput(trimmed)
+    if (!trimmed || parsing) return
+    void processInput(trimmed)
   }
 
   function onClarificationSelect(option: ClarificationOption) {
     if (!parseResult) return
+
+    if (option.type === 'compound') {
+      processClauseInput(option.id)
+      return
+    }
 
     if (option.id === '__create__') {
       const kind = parseResult.clarification?.kind
@@ -349,56 +373,31 @@ export function CommandBar({
     setConfirmError(null)
   }
 
-  function startVoiceInput() {
-    if (!speech.supported) {
-      toast.error('Voice input is not supported on this device')
-      return
-    }
-    if (barState === 'idle') {
-      setBarState('input')
-      setParseResult(null)
-      setConfirmError(null)
-    }
-    speech.start()
-  }
-
   const rotatingExample = PLACEHOLDER_EXAMPLES[placeholderIndex]
 
   if (barState === 'idle') {
     return (
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={openInput}
-          data-testid="command-bar-open"
-          className="group flex-1 rounded-[20px] border border-accent/15 bg-gradient-to-r from-accent/8 via-accent/5 to-transparent p-4 text-left shadow-[var(--shadow-soft)] transition-all hover:border-accent/25 hover:from-accent/12 dark:border-accent/20 dark:from-accent/15"
-          aria-label="Tell Nirvana what happened with your money"
-        >
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-ink dark:text-white">{closedPlaceholder}</p>
-              <p className="mt-0.5 truncate text-xs text-ink-faint transition-opacity duration-500">
-                e.g. {rotatingExample}
-              </p>
-            </div>
-            <ArrowRight
-              className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5"
-              aria-hidden
-            />
+      <button
+        type="button"
+        onClick={openInput}
+        data-testid="command-bar-open"
+        className="group w-full rounded-[20px] border border-accent/15 bg-gradient-to-r from-accent/8 via-accent/5 to-transparent p-4 text-left shadow-[var(--shadow-soft)] transition-all hover:border-accent/25 hover:from-accent/12 dark:border-accent/20 dark:from-accent/15"
+        aria-label="Tell Nirvana what happened with your money"
+      >
+        <div className="flex items-center gap-3">
+          <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-ink dark:text-white">{closedPlaceholder}</p>
+            <p className="mt-0.5 truncate text-xs text-ink-faint transition-opacity duration-500">
+              e.g. {rotatingExample}
+            </p>
           </div>
-        </button>
-        {speech.supported ? (
-          <button
-            type="button"
-            onClick={startVoiceInput}
-            className="flex h-[72px] w-14 shrink-0 items-center justify-center rounded-[20px] border border-accent/15 bg-accent/10 text-accent shadow-[var(--shadow-soft)] transition hover:bg-accent/15 dark:border-accent/20"
-            aria-label="Speak a money command"
-          >
-            <Mic className="h-5 w-5" />
-          </button>
-        ) : null}
-      </div>
+          <ArrowRight
+            className="h-4 w-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          />
+        </div>
+      </button>
     )
   }
 
@@ -453,8 +452,17 @@ export function CommandBar({
               ) : (
                 <span />
               )}
-              <Button type="submit" size="default" disabled={!text.trim()} aria-label="Submit command">
-                <ArrowRight className="h-4 w-4" />
+              <Button
+                type="submit"
+                size="default"
+                disabled={!text.trim() || parsing}
+                aria-label="Submit command"
+              >
+                {parsing ? (
+                  <span className="text-sm">Understanding…</span>
+                ) : (
+                  <ArrowRight className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </form>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
+import { NirvanaHorizontalLogo } from '@/components/NirvanaLogo'
 import { cn } from '@/lib/utils'
 import { tabItems, tabTitles } from '@/lib/navigation'
 import { quickActions } from '@/lib/quick-actions'
@@ -64,6 +65,9 @@ function DesktopSidebar() {
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-ink/5 p-5 lg:flex dark:border-white/10">
+      <Link to="/" className="mb-6 block w-full" aria-label="Nirvana home">
+        <NirvanaHorizontalLogo size="sidebar" />
+      </Link>
       <nav className="space-y-1">
         {tabItems.map((item) => (
           <NavLink

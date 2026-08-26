@@ -19,39 +19,39 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'dashboard',
-    title: 'Your financial home 🏠',
+    title: 'Your financial home',
     description:
       'The Dashboard gives you a quick view of your financial life — cash flow, investments, loans, goals and important financial actions.',
     route: '/',
   },
   {
     id: 'wealth',
-    title: 'Build your wealth 🎯',
+    title: 'Build your wealth',
     description: 'Create financial goals and track the investments helping you reach them.',
     route: '/',
   },
   {
     id: 'loans',
-    title: 'Stay on top of your debt 🏦',
+    title: 'Stay on top of your debt',
     description: 'Track your loans, EMIs, outstanding balances and repayment progress.',
     route: '/',
   },
   {
     id: 'profile',
-    title: 'Make Nirvana yours 👤',
+    title: 'Make Nirvana yours',
     description: 'Manage your profile, country, currency and app preferences here.',
     route: '/',
   },
   {
     id: 'fab',
-    title: 'Add things in seconds ⚡',
+    title: 'Add things in seconds',
     description:
       'Use the + button whenever you want to record something. Quickly add an expense, income, investment, withdrawal or loan payment.',
     route: '/',
   },
   {
     id: 'notifications',
-    title: 'Never miss a financial commitment 🔔',
+    title: 'Never miss a financial commitment',
     description:
       'Nirvana keeps track of scheduled investments, EMIs and other recurring activities. When something is due, you\'ll see it here and can confirm whether it actually happened.',
     route: '/',

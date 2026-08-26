@@ -10,9 +10,9 @@ import {
   countActionRequired,
   daysOverdue,
   isActionRequired,
-  occurrenceTypeEmoji,
   sortOccurrencesForDisplay,
 } from '@/lib/calculations/recurring'
+import { OccurrenceTypeLabel, WarningBadge } from '@/lib/visual-icons'
 import { formatDisplayDate, monthKeyFromDate, todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import { toMajorUnits } from '@/lib/money'
@@ -210,7 +210,7 @@ export function NotificationsTab({ currency }: { currency: SupportedCurrency }) 
             </section>
           ) : (
             <Card variant="flat" className="text-center">
-              <p className="text-sm font-medium text-ink dark:text-white">All caught up ✨</p>
+              <p className="text-sm font-medium text-ink dark:text-white">All caught up</p>
               <p className="mt-1 text-sm text-ink-muted">
                 Nothing needs confirmation right now.
               </p>
@@ -231,7 +231,7 @@ export function NotificationsTab({ currency }: { currency: SupportedCurrency }) 
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink dark:text-white">
-                        {occurrenceTypeEmoji(occurrence.type)} {occurrence.name}
+                        <OccurrenceTypeLabel type={occurrence.type} name={occurrence.name} />
                       </p>
                       <p className="text-xs text-ink-muted">
                         {formatDisplayDate(occurrence.scheduledDate)}
@@ -270,7 +270,7 @@ export function NotificationsTab({ currency }: { currency: SupportedCurrency }) 
           <form className="space-y-4" onSubmit={onRecord}>
             <div className="rounded-[16px] bg-surface px-4 py-4 dark:bg-surface-dark">
               <p className="font-semibold text-ink dark:text-white">
-                {occurrenceTypeEmoji(recording.type)} {recording.name}
+                <OccurrenceTypeLabel type={recording.type} name={recording.name} />
               </p>
               <dl className="mt-3 space-y-2 text-sm">
                 <div className="flex justify-between gap-3">
@@ -504,7 +504,9 @@ function OccurrenceCard({
   return (
     <Card>
       {isOverdue ? (
-        <p className="text-xs font-semibold text-danger">⚠️ Overdue</p>
+        <p className="flex items-center gap-1 text-xs font-semibold text-danger">
+          <WarningBadge /> Overdue
+        </p>
       ) : isDue ? (
         <p className="text-xs font-semibold text-accent">Due today</p>
       ) : (
@@ -513,7 +515,7 @@ function OccurrenceCard({
       <div className="mt-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-ink dark:text-white">
-            {occurrenceTypeEmoji(occurrence.type)} {occurrence.name}
+            <OccurrenceTypeLabel type={occurrence.type} name={occurrence.name} />
           </p>
           <p className="mt-0.5 text-sm text-ink-muted">
             {isOverdue

@@ -7,7 +7,7 @@ import {
   extractIncomeCategory,
   extractLoanHint,
 } from '@/lib/command-bar/entities'
-import { parseCommand } from '@/lib/command-bar/parser'
+import { parseCommand, parseCommandAsync } from '@/lib/command-bar/parser'
 import type { ParserContext } from '@/lib/command-bar/types'
 
 const baseContext: ParserContext = {
@@ -289,6 +289,13 @@ describe('parseCommand — edge cases', () => {
     })
     expect(r.structured.intent).toBe('RECORD_LOAN_PAYMENT')
     expect(r.structured.loanId).toBe('l1')
+  })
+
+  it('detects compound sentences for clarification', async () => {
+    const r = await parseCommandAsync('Got salary 2L and invested 50k in retirement', baseContext)
+    expect(r.phase).toBe('needs_clarification')
+    expect(r.clarification?.kind).toBe('compound_action')
+    expect(r.clarification?.options).toHaveLength(2)
   })
 
   it('parses within 300ms', () => {

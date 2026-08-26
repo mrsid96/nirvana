@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp } from 'lucide-react'
 import { Card, EmptyState, HeroCard } from '@/components/ui'
+import { PageHeader } from '@/components/PageHeader'
 import { HealthCard } from '@/components/HealthCard'
 import { MilestoneBanner, useMilestones } from '@/components/MilestoneBanner'
 import { MoneyFlow, SummaryGrid } from '@/components/MoneyFlow'
@@ -27,7 +28,7 @@ import type { SupportedCurrency } from '@/types/user'
 function healthMessage(overall: string) {
   const lower = overall.toLowerCase()
   if (lower.includes('excellent') || lower.includes('great')) {
-    return "You're building a healthy financial foundation. ✨"
+    return "You're building a healthy financial foundation."
   }
   if (lower.includes('good')) {
     return "Solid habits — keep the momentum going."
@@ -128,18 +129,12 @@ export function DashboardPage() {
   return (
     <div className="space-y-7">
       <MilestoneBanner milestones={milestones} />
-      <header className="flex items-start justify-between gap-4 pt-1">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-ink-muted">
-            {greetingForNow()}, {name} 👋
-          </p>
-          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight text-ink dark:text-white lg:text-[32px]">
-            You&apos;re building a stronger{' '}
-            <span className="font-serif font-medium text-accent">financial future</span>.
-          </h1>
-        </div>
-        <ProfileAvatar className="mt-1" />
-      </header>
+      <PageHeader
+        greeting={`${greetingForNow()}, ${name}`}
+        title="You're building a stronger"
+        accent="financial future."
+        trailing={<ProfileAvatar className="mt-1" />}
+      />
 
       <CommandBar contextKey="home" />
 
@@ -161,7 +156,7 @@ export function DashboardPage() {
               {formatMoney(cashflow.freeCashFlow, currency, { compact: true })} free this month
             </p>
           ) : (
-            <p className="mt-1.5 text-sm text-white/75">✦ Keep going — progress compounds</p>
+            <p className="mt-1.5 text-sm text-white/75">Keep going — progress compounds</p>
           )}
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-[14px] bg-white/12 px-3 py-1.5 backdrop-blur-sm">
@@ -199,7 +194,7 @@ export function DashboardPage() {
           { value: 'month', label: 'This month' },
           {
             value: 'notifications',
-            label: notificationCount > 0 ? 'Notifications' : 'All caught up ✨',
+            label: notificationCount > 0 ? 'Notifications' : 'All caught up',
             badge: notificationCount > 0 ? notificationCount : undefined,
           },
         ]}
@@ -248,7 +243,7 @@ export function DashboardPage() {
               />
             ) : (
               <EmptyState
-                emoji="📈"
+                icon={TrendingUp}
                 title="Not enough history yet"
                 body="This chart shows how your total tracked wealth changes each month. Keep logging asset values and it will fill in over time."
               />

@@ -259,21 +259,6 @@ export function daysOverdue(scheduledDate: string, today: string): number {
   return Math.max(0, diff)
 }
 
-export function occurrenceTypeEmoji(type: RecurringActivityType): string {
-  switch (type) {
-    case 'INVESTMENT':
-      return '📈'
-    case 'LOAN_PAYMENT':
-      return '🏦'
-    case 'INCOME':
-      return '💰'
-    case 'EXPENSE':
-      return '💸'
-    default:
-      return '📅'
-  }
-}
-
 export interface CalendarMonthGroup {
   monthKey: string
   label: string

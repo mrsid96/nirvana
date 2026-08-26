@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
 import { CommandBar } from '@/components/CommandBar'
+import { PageHeader } from '@/components/PageHeader'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import {
   Button,
@@ -160,20 +161,17 @@ export function LoansPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ink dark:text-white lg:text-3xl">
-            Your loans
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Let&apos;s keep the debt journey visible.
-          </p>
-        </div>
-        <Button onClick={() => setOpen(true)} className="shrink-0">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Add loan</span>
-        </Button>
-      </header>
+      <PageHeader
+        title="Your"
+        accent="loans"
+        subtitle="Let's keep the debt journey visible."
+        action={
+          <Button onClick={() => setOpen(true)} className="shrink-0">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add loan</span>
+          </Button>
+        }
+      />
 
       <CommandBar contextKey="loans" />
 

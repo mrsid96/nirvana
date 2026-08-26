@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { FormPanel } from '@/components/FormPanel'
 import { AmountInput, Button, Field, Input, Pill, Select } from '@/components/ui'
@@ -11,24 +11,13 @@ import {
   getQuickSheetTitle,
   type QuickSheet,
 } from '@/lib/quick-actions'
+import { EXPENSE_CATEGORY_ICONS } from '@/lib/visual-icons'
 import { EXPENSE_CATEGORIES, PAYMENT_SOURCES } from '@/types/expense'
 import { INCOME_SOURCES } from '@/types/income'
 
 export type { QuickSheet } from '@/lib/quick-actions'
 
 const QUICK_EXPENSE_CATEGORIES = ['Food', 'Groceries', 'Transport', 'Home', 'Shopping', 'Travel'] as const
-
-const categoryEmoji: Record<string, string> = {
-  Food: '🍔',
-  Groceries: '🛒',
-  Transport: '🚗',
-  Home: '🏠',
-  Shopping: '🛍',
-  Travel: '✈️',
-  Entertainment: '🎬',
-  Health: '💊',
-  Education: '📚',
-}
 
 export function QuickSheets({
   open,
@@ -46,20 +35,45 @@ export function QuickSheets({
   const [category, setCategory] = useState<(typeof EXPENSE_CATEGORIES)[number]>('Food')
   const [paymentSource, setPaymentSource] = useState<(typeof PAYMENT_SOURCES)[number]>('UPI')
   const [incomeSource, setIncomeSource] = useState('Salary')
-  const [assetId, setAssetId] = useState(finance.assets[0]?.id ?? '')
+  const [goalId, setGoalId] = useState('')
+  const [assetId, setAssetId] = useState('')
   const [loanId, setLoanId] = useState(finance.loans[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
+
+  const activeGoals = useMemo(
+    () => finance.goals.filter((goal) => !goal.isDeleted),
+    [finance.goals],
+  )
+
+  const goalAssets = useMemo(
+    () => finance.assets.filter((asset) => asset.goalId === goalId && !asset.isDeleted),
+    [finance.assets, goalId],
+  )
 
   useEffect(() => {
     if (open) {
       setAmount('')
       setNote('')
       setDate(todayIsoDate())
+      const firstGoal = activeGoals[0]?.id ?? ''
+      setGoalId(firstGoal)
+      const firstAsset = finance.assets.find(
+        (asset) => asset.goalId === firstGoal && !asset.isDeleted,
+      )
+      setAssetId(firstAsset?.id ?? '')
     }
-  }, [open])
+  }, [open, activeGoals, finance.assets])
 
   const title = open ? getQuickSheetTitle(open) : ''
   const successMessage = open ? getQuickSheetSuccessMessage(open) : 'Saved.'
+
+  function onGoalChange(nextGoalId: string) {
+    setGoalId(nextGoalId)
+    const firstAsset = finance.assets.find(
+      (asset) => asset.goalId === nextGoalId && !asset.isDeleted,
+    )
+    setAssetId(firstAsset?.id ?? '')
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -88,7 +102,11 @@ export function QuickSheets({
           description: note || undefined,
         })
       } else if (open === 'investment' || open === 'withdrawal') {
-        const asset = finance.assets.find((item) => item.id === assetId)
+        if (!goalId) {
+          toast.error('Choose a goal first')
+          return
+        }
+        const asset = goalAssets.find((item) => item.id === assetId)
         if (!asset) {
           toast.error('Choose an asset first')
           return
@@ -96,7 +114,7 @@ export function QuickSheets({
         await finance.addTransaction(
           {
             assetId: asset.id,
-            goalId: asset.goalId,
+            goalId,
             type: open === 'investment' ? 'INVESTMENT' : 'WITHDRAWAL',
             amount: minor,
             date,
@@ -151,16 +169,20 @@ export function QuickSheets({
         {open === 'expense' ? (
           <>
             <div className="scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {QUICK_EXPENSE_CATEGORIES.map((item) => (
-                <Pill
-                  key={item}
-                  active={category === item}
-                  onClick={() => setCategory(item)}
-                  className="!px-3"
-                >
-                  {categoryEmoji[item] ?? ''} {item}
-                </Pill>
-              ))}
+              {QUICK_EXPENSE_CATEGORIES.map((item) => {
+                const Icon = EXPENSE_CATEGORY_ICONS[item]
+                return (
+                  <Pill
+                    key={item}
+                    active={category === item}
+                    onClick={() => setCategory(item)}
+                    className="!px-3"
+                  >
+                    {Icon ? <Icon className="mr-1 inline h-3.5 w-3.5" strokeWidth={2} /> : null}
+                    {item}
+                  </Pill>
+                )
+              })}
             </div>
             <Field label="Paid with">
               <Select
@@ -190,15 +212,38 @@ export function QuickSheets({
         ) : null}
 
         {open === 'investment' || open === 'withdrawal' ? (
-          <Field label="Asset">
-            <Select value={assetId} onChange={(event) => setAssetId(event.target.value)}>
-              {finance.assets.map((asset) => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <>
+            <Field label="Goal">
+              <Select value={goalId} onChange={(event) => onGoalChange(event.target.value)}>
+                {activeGoals.length === 0 ? (
+                  <option value="">No goals yet</option>
+                ) : (
+                  activeGoals.map((goal) => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.name}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </Field>
+            <Field label="Asset">
+              <Select
+                value={assetId}
+                onChange={(event) => setAssetId(event.target.value)}
+                disabled={!goalId || goalAssets.length === 0}
+              >
+                {goalAssets.length === 0 ? (
+                  <option value="">No assets in this goal</option>
+                ) : (
+                  goalAssets.map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </Field>
+          </>
         ) : null}
 
         {open === 'loan-payment' ? (

@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, TrendingUp } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -242,7 +242,7 @@ export function GoalDetailPage() {
         plannedInvestmentDay: monthlyMinor ? plannedDayNum : undefined,
         isActive: true,
       })
-      toast.success('Asset added. Nice move. ✨')
+      toast.success('Asset added. Nice move.')
       setAssetOpen(false)
       setName('')
       setCurrentValue('')
@@ -435,11 +435,11 @@ export function GoalDetailPage() {
 
   const trackMessage =
     metrics.trackStatus === 'On Track'
-      ? "You're on track ✨"
+      ? "You're on track"
       : metrics.trackStatus === 'Ahead'
-        ? "You're ahead of schedule 🚀"
+        ? "You're ahead of schedule"
         : metrics.trackStatus === 'Completed'
-          ? 'Goal complete — well done! 🏆'
+          ? 'Goal complete — well done!'
           : 'This goal needs a little more love.'
 
   return (
@@ -953,7 +953,7 @@ function GoalAssetsTab({
 
         {assets.length === 0 ? (
           <EmptyState
-            emoji="📈"
+            icon={TrendingUp}
             title={allAssets.length === 0 ? 'No assets yet' : 'No assets in this view'}
             body={
               allAssets.length === 0

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { MonthlyStatement } from '@/components/MonthlyStatement'
+import { PageHeader } from '@/components/PageHeader'
 import { DashboardSkeleton } from '@/components/Skeleton'
 import { useFinance } from '@/contexts/FinanceContext'
 import { currentMonthKey } from '@/lib/formatters/dates'
@@ -16,14 +17,11 @@ export function StatementsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-[28px] font-semibold tracking-tight text-ink dark:text-white lg:text-3xl">
-          Statements
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Month-by-month view of income, spending, and cash flow.
-        </p>
-      </header>
+      <PageHeader
+        title="Your"
+        accent="statements"
+        subtitle="Month-by-month view of income, spending, and cash flow."
+      />
 
       <MonthlyStatement
         month={month}

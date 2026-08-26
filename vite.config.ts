@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
         includeAssets: [
           'favicon.png',
           'nirvana-logo.png',
+          'nirvana-logo-horizontal.png',
           'og.png',
           'og.svg',
           'icons/apple-touch-icon.png',

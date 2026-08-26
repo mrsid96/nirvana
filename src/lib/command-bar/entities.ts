@@ -59,8 +59,19 @@ export function extractIncomeCategory(text: string): string | undefined {
   return undefined
 }
 
-export function extractGoalHint(text: string): string | undefined {
+export function extractGoalHint(
+  text: string,
+  goals?: Array<{ name: string }>,
+): string | undefined {
   const normalized = text.toLowerCase()
+  if (goals) {
+    for (const goal of goals) {
+      const name = goal.name.toLowerCase()
+      if (name.length >= 3 && normalized.includes(name)) return goal.name
+      const words = name.split(/\s+/).filter((word) => word.length >= 4)
+      if (words.some((word) => normalized.includes(word))) return goal.name
+    }
+  }
   for (const kw of GOAL_KEYWORDS) {
     if (normalized.includes(kw)) {
       if (kw === 'home' && normalized.includes('home loan')) continue

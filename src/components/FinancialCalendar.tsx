@@ -1,11 +1,12 @@
+import { Calendar, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
 import { formatDisplayDate, todayIsoDate } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import {
   daysOverdue,
   groupOccurrencesByMonth,
-  occurrenceTypeEmoji,
 } from '@/lib/calculations/recurring'
+import { OccurrenceTypeLabel } from '@/lib/visual-icons'
 import type { ScheduledOccurrence } from '@/types/recurring'
 import type { SupportedCurrency } from '@/types/user'
 import { EmptyState } from '@/components/ui'
@@ -30,7 +31,7 @@ export function FinancialCalendar({
   if (!hasItems) {
     return (
       <EmptyState
-        emoji="📅"
+        icon={Calendar}
         title="No upcoming schedule"
         body="Add recurring income, expenses, or SIPs to see your financial calendar."
       />
@@ -63,7 +64,7 @@ export function FinancialCalendar({
                     <p className="text-sm font-medium text-ink dark:text-white">
                       <span className="text-ink-muted">{item.scheduledDate.slice(8)}</span>
                       {' '}
-                      {occurrenceTypeEmoji(item.type)} {item.name}
+                      <OccurrenceTypeLabel type={item.type} name={item.name} />
                     </p>
                     <p className="text-xs text-ink-muted">
                       {isOverdue

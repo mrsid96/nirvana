@@ -100,9 +100,9 @@ describe('CommandBar UI', () => {
     expect(screen.getByTestId('command-bar-open')).toBeInTheDocument()
   })
 
-  it('shows voice button when speech is supported', () => {
+  it('does not show mic button in closed state', () => {
     renderBar()
-    expect(screen.getByLabelText(/speak a money command/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/speak a money command/i)).not.toBeInTheDocument()
   })
 
   it('expands to text input on click', async () => {
@@ -111,6 +111,7 @@ describe('CommandBar UI', () => {
     await openCommandInput(user)
     expect(screen.getByLabelText(/natural language money command/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/start voice input/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/submit command/i)).toBeInTheDocument()
   })
 
   it('shows confirmation for expense command', async () => {

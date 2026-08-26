@@ -1,10 +1,11 @@
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
 import { GoalCard } from '@/components/GoalCard'
 import { GoalFormFields } from '@/components/GoalFormFields'
 import { CommandBar } from '@/components/CommandBar'
+import { PageHeader } from '@/components/PageHeader'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { WealthSkeleton } from '@/components/Skeleton'
 import { Button, Card, EmptyState, HeroCard, SectionTitle } from '@/components/ui'
@@ -133,7 +134,7 @@ export function WealthPage() {
         priority,
         status: 'active',
       })
-      toast.success('Goal created. Let\'s build something. ✨')
+      toast.success("Goal created. Let's build something.")
       setOpen(false)
       setName('')
       setDescription('')
@@ -149,20 +150,19 @@ export function WealthPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ink dark:text-white lg:text-3xl">
-            Your <span className="font-serif font-medium text-accent">wealth</span>
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">Building something meaningful.</p>
-        </div>
-        {tab === 'goals' ? (
-          <Button onClick={() => setOpen(true)} className="shrink-0">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add goal</span>
-          </Button>
-        ) : null}
-      </header>
+      <PageHeader
+        title="Your"
+        accent="wealth"
+        subtitle="Building something meaningful."
+        action={
+          tab === 'goals' ? (
+            <Button onClick={() => setOpen(true)} className="shrink-0">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add goal</span>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <CommandBar contextKey="wealth" />
 
@@ -183,7 +183,7 @@ export function WealthPage() {
               Target wealth {formatMoney(totalTarget, currency, { compact: true })}
             </p>
           ) : (
-            <p className="mt-1.5 text-sm text-white/75">✦ Set a goal to start tracking progress</p>
+            <p className="mt-1.5 text-sm text-white/75">Set a goal to start tracking progress</p>
           )}
         </HeroCard>
 
@@ -324,7 +324,7 @@ function GoalsTab({
   if (cards.length === 0) {
     return (
       <EmptyState
-        emoji="✨"
+        icon={Sparkles}
         title="Your wealth journey starts here"
         body="Create your first goal and start turning plans into progress."
         action={<Button onClick={onCreate}>Create a goal</Button>}
@@ -334,7 +334,7 @@ function GoalsTab({
 
   return (
     <section className="space-y-3">
-      <SectionTitle title="Your goals ✨" subtitle="Small steps become big milestones." />
+      <SectionTitle title="Your goals" subtitle="Small steps become big milestones." />
       <div className="grid grid-cols-2 gap-2.5 lg:gap-4">
         {cards.map(({ goal, metrics }, index) => (
           <GoalCard

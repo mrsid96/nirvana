@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Button({
@@ -224,16 +225,20 @@ export function EmptyState({
   title,
   body,
   action,
-  emoji,
+  icon: Icon,
 }: {
   title: string
   body: string
   action?: ReactNode
-  emoji?: string
+  icon?: LucideIcon
 }) {
   return (
     <div className="rounded-[24px] bg-gradient-to-b from-accent/5 to-transparent px-6 py-12 text-center">
-      {emoji ? <p className="text-3xl">{emoji}</p> : null}
+      {Icon ? (
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-accent/10 text-accent">
+          <Icon className="h-6 w-6" strokeWidth={2} />
+        </div>
+      ) : null}
       <h3 className="mt-3 font-serif text-xl font-medium text-ink dark:text-white">{title}</h3>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-ink-muted">{body}</p>
       {action ? <div className="mt-5">{action}</div> : null}

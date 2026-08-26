@@ -1,6 +1,7 @@
 import { toMinorUnits } from '@/lib/money'
 import { calculateGoalMetrics } from '@/lib/calculations/goals'
 import { totalOutstanding } from '@/lib/calculations/loans'
+import type { MilestoneIconKey } from '@/lib/visual-icons'
 import type { Asset } from '@/types/asset'
 import type { Goal } from '@/types/goal'
 import type { Loan } from '@/types/loan'
@@ -8,7 +9,7 @@ import type { SupportedCurrency } from '@/types/user'
 
 export type Milestone = {
   id: string
-  emoji: string
+  icon: MilestoneIconKey
   title: string
   body: string
 }
@@ -57,7 +58,7 @@ export function detectMilestones({
   if (totalInvested >= firstInvestThreshold) {
     milestones.push({
       id: `invested-${currency === 'INR' ? '1L' : '1K'}`,
-      emoji: '🎉',
+      icon: 'celebrate',
       title: currency === 'INR' ? 'First ₹1L invested!' : 'First $1K invested!',
       body: "You've taken a meaningful step toward your future.",
     })
@@ -68,7 +69,7 @@ export function detectMilestones({
     if (totalWealth >= minor) {
       milestones.push({
         id: `wealth-${threshold.major}`,
-        emoji: '🚀',
+        icon: 'rocket',
         title: `Your wealth crossed ${threshold.label}!`,
         body: 'Keep building — momentum is on your side.',
       })
@@ -81,7 +82,7 @@ export function detectMilestones({
       if (metrics.displayProgressPercent >= step) {
         milestones.push({
           id: `goal-${goal.id}-${step}`,
-          emoji: step === 100 ? '🏆' : '✨',
+          icon: step === 100 ? 'trophy' : 'sparkle',
           title:
             step === 100
               ? `${goal.name} — goal complete!`
@@ -104,7 +105,7 @@ export function detectMilestones({
     if (paidPercent >= 10) {
       milestones.push({
         id: 'loan-paid-10',
-        emoji: '💪',
+        icon: 'strength',
         title: "You're chipping away at your debt",
         body: `${paidPercent.toFixed(0)}% of your loans paid off. Keep going.`,
       })
@@ -114,7 +115,7 @@ export function detectMilestones({
   if (activeAssets.length > 0 && goals.length > 0) {
     milestones.push({
       id: 'journey-started',
-      emoji: '🌱',
+      icon: 'seedling',
       title: 'Your wealth journey is underway',
       body: `${goals.length} goal${goals.length === 1 ? '' : 's'} · ${activeAssets.length} asset${activeAssets.length === 1 ? '' : 's'} tracked`,
     })

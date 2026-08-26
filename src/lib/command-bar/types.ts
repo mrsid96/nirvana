@@ -42,11 +42,12 @@ export type ClarificationKind =
   | 'ambiguous_loan'
   | 'ambiguous_intent'
   | 'missing_amount'
+  | 'compound_action'
 
 export interface ClarificationOption {
   id: string
   label: string
-  type: 'goal' | 'asset' | 'loan' | 'action' | 'create' | 'occurrence'
+  type: 'goal' | 'asset' | 'loan' | 'action' | 'create' | 'occurrence' | 'compound'
 }
 
 export interface Clarification {

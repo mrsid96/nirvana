@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,9 +8,9 @@ import { useFinance } from '@/contexts/FinanceContext'
 import {
   formatScheduledDay,
   groupRecurringByType,
-  occurrenceTypeEmoji,
   recurringTypeLabel,
 } from '@/lib/calculations/recurring'
+import { OccurrenceTypeLabel } from '@/lib/visual-icons'
 import { formatMoney } from '@/lib/formatters/currency'
 import { toMajorUnits } from '@/lib/money'
 import { parseAmountInput, parseDayOfMonth } from '@/lib/validation/parse'
@@ -111,7 +112,7 @@ export function RecurringActivitiesPanel({ currency }: { currency: SupportedCurr
   if (!hasAny) {
     return (
       <EmptyState
-        emoji="🔁"
+        icon={RefreshCw}
         title="No recurring activities"
         body="SIPs, EMIs, salary, and other monthly items will appear here once configured."
       />
@@ -221,7 +222,7 @@ function RecurringRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium text-ink dark:text-white">
-            {occurrenceTypeEmoji(activity.type)} {activity.name}
+            <OccurrenceTypeLabel type={activity.type} name={activity.name} />
           </p>
           <p className="mt-0.5 text-sm text-ink-muted">
             {formatScheduledDay(activity.scheduledDay)} · {recurringTypeLabel(activity.type)}
