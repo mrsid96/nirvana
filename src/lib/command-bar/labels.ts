@@ -76,3 +76,24 @@ export const CONTEXT_PLACEHOLDERS: Record<string, string> = {
   loans: 'Tell Nirvana about a loan payment...',
   loan: 'Record a payment or ask about this loan...',
 }
+
+/** Intents the user can switch to in edit mode */
+export const EDITABLE_WRITE_INTENTS = [
+  'ADD_EXPENSE',
+  'ADD_INCOME',
+  'RECORD_INVESTMENT',
+  'RECORD_WITHDRAWAL',
+  'RECORD_LOAN_PAYMENT',
+  'CREATE_RECURRING_INVESTMENT',
+  'CREATE_RECURRING_EXPENSE',
+] as const
+
+export type EditableWriteIntent = (typeof EDITABLE_WRITE_INTENTS)[number]
+
+export const CREATE_INTENTS = ['CREATE_GOAL', 'CREATE_ASSET', 'CREATE_LOAN'] as const
+
+export type CreateIntent = (typeof CREATE_INTENTS)[number]
+
+export function isCreateIntent(intent: CommandIntent): boolean {
+  return CREATE_INTENTS.includes(intent as CreateIntent)
+}

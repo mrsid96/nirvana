@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { ActivityTimeline, type TimelineItem } from '@/components/ActivityTimeline'
+import { CommandBar } from '@/components/CommandBar'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import {
   Button,
@@ -173,6 +174,8 @@ export function LoansPage() {
           <span className="hidden sm:inline">Add loan</span>
         </Button>
       </header>
+
+      <CommandBar contextKey="loans" />
 
       <section
         className={
@@ -484,6 +487,9 @@ export function LoanDetailPage() {
           </Button>
         </div>
       </header>
+
+      <CommandBar contextKey="loan" loanId={loanId} />
+
       <Card>
         <p className="text-sm text-ink-muted">Remaining</p>
         <p className="font-display mt-1 text-3xl font-semibold text-ink dark:text-white">

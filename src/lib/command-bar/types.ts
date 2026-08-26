@@ -46,7 +46,7 @@ export type ClarificationKind =
 export interface ClarificationOption {
   id: string
   label: string
-  type: 'goal' | 'asset' | 'loan' | 'action' | 'create'
+  type: 'goal' | 'asset' | 'loan' | 'action' | 'create' | 'occurrence'
 }
 
 export interface Clarification {
@@ -81,6 +81,28 @@ export interface StructuredIntent {
   navigationPath?: string
   queryResult?: QueryResult
   parserMethod?: string
+  scheduledOccurrenceId?: string
+  scheduledOccurrenceName?: string
+  targetDate?: string
+  priority?: 'low' | 'medium' | 'high'
+  assetCategory?: string
+  investmentType?: 'SIP' | 'LUMP_SUM' | 'BOTH'
+  monthlyInvestment?: number
+  expectedCagr?: number
+  bank?: string
+  purpose?: string
+  originalAmount?: number
+  outstandingAmount?: number
+  emiAmount?: number
+  interestRate?: number
+  tenureMonths?: number
+  startDate?: string
+}
+
+export interface ScheduledOccurrenceRef {
+  id: string
+  name: string
+  status: string
 }
 
 export interface ParseResult {
@@ -100,6 +122,7 @@ export interface ParserContext {
   currentAssetId?: string
   currentLoanId?: string
   today?: string
+  scheduledOccurrences?: ScheduledOccurrenceRef[]
 }
 
 export interface FinanceSnapshot {
