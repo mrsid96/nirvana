@@ -387,10 +387,6 @@ export function LandingHero({
           <div className="landing-preview-ring absolute -inset-3 z-0 rounded-[32px] opacity-70" aria-hidden />
           <div className="absolute -left-8 top-6 -z-10 hidden h-32 w-32 rounded-full bg-gradient-to-br from-mint/30 to-success/10 blur-3xl lg:block" aria-hidden />
           <div className="absolute -right-6 bottom-4 -z-10 hidden h-36 w-36 rounded-full bg-gradient-to-br from-accent/30 to-violet-500/10 blur-3xl lg:block" aria-hidden />
-          <div className="absolute -right-3 top-40 z-20 hidden rounded-[18px] border border-yellow/30 bg-yellow/20 px-3 py-2 shadow-[0_8px_24px_rgba(244,201,93,0.25)] backdrop-blur-md lg:block">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">Bonus</p>
-            <p className="font-display text-lg font-bold text-ink dark:text-white">2L received</p>
-          </div>
           <HeroPreview className="hero-float relative z-10" />
         </div>
       </div>
