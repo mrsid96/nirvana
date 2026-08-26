@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { parseFinancialEntities } from '@/lib/command-bar/entity-parser'
-import type { ParsedFinancialAction } from '@/lib/command-bar/entity-model'
+import type {
+  GoalActionData,
+  ParsedFinancialAction,
+  WithdrawActionData,
+} from '@/lib/command-bar/entity-model'
 import { toMinorUnits } from '@/lib/money'
 import type { ParserContext } from '@/lib/command-bar/types'
 
@@ -24,7 +28,7 @@ describe('regression cases', () => {
       asset: 'mutual_fund',
     })
     const goal = entities(result.actions, 'GOAL')[0]
-    expect(goal?.data.name).toMatch(/education/i)
+    expect((goal?.data as GoalActionData).name).toMatch(/education/i)
   })
 
   it('home loan + savings + clear loan goal', () => {
@@ -35,9 +39,9 @@ describe('regression cases', () => {
     expect(entities(result.actions, 'INCOME')).toHaveLength(0)
     const loan = entities(result.actions, 'LOAN')[0]
     expect(loan?.data).toMatchObject({ type: 'home_loan', amount: minor(3000000) })
-    const goal = entities(result.actions, 'GOAL').find((g) => g.data.tenure)
-    expect(goal?.data.name).toMatch(/loan|house/i)
-    expect(goal?.data.tenure).toMatch(/7 years/)
+    const goal = entities(result.actions, 'GOAL').find((g) => (g.data as GoalActionData).tenure)
+    expect((goal?.data as GoalActionData).name).toMatch(/loan|house/i)
+    expect((goal?.data as GoalActionData).tenure).toMatch(/7 years/)
     const asset = entities(result.actions, 'ASSET')[0]
     expect(asset?.data).toMatchObject({ type: 'savings', current_value: minor(1000000) })
   })
@@ -66,7 +70,7 @@ describe('regression cases', () => {
       amount: minor(50000),
       goal: 'Retirement',
     })
-    expect(withdraw?.data.date).toBe('2025-08-15')
+    expect((withdraw?.data as WithdrawActionData).date).toBe('2025-08-15')
   })
 
   it('salary breakdown with ambiguous dual-asset allocation', () => {
@@ -89,7 +93,7 @@ describe('regression cases', () => {
       frequency: 'monthly',
     })
     const goal = entities(result.actions, 'GOAL')[0]
-    expect(goal?.data.name).toMatch(/education/i)
+    expect((goal?.data as GoalActionData).name).toMatch(/education/i)
     const assets = entities(result.actions, 'ASSET')
     expect(assets).toHaveLength(2)
     expect(assets.map((a) => (a.data as { type: string }).type).sort()).toEqual(['mutual_fund', 'rd'])
