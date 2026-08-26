@@ -349,6 +349,62 @@ body {
   transform: translateY(0);
 }
 
+.landing-shell {
+  isolation: isolate;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgba(102, 87, 232, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(102, 87, 232, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 78%);
+}
+
+.landing-glow {
+  pointer-events: none;
+}
+
+.landing-glow-a::before,
+.landing-glow-b::before {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(64px);
+}
+
+.landing-glow-a::before {
+  top: -8rem;
+  left: 50%;
+  width: min(42rem, 90vw);
+  height: 20rem;
+  transform: translateX(-50%);
+  background: rgba(102, 87, 232, 0.16);
+}
+
+.landing-glow-b::before {
+  right: -6rem;
+  top: 28rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgba(87, 199, 163, 0.12);
+}
+
+.landing-card {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(102, 87, 232, 0.18);
+    box-shadow: 0 18px 44px rgba(102, 87, 232, 0.08);
+  }
+}
+
 select {
   -webkit-appearance: none;
   appearance: none;
