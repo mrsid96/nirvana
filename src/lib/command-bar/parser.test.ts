@@ -225,6 +225,67 @@ describe('parseCommand — spec examples', () => {
     expect(r.phase).toBe('needs_confirmation')
   })
 
+  it('creates goal with RD in one command', () => {
+    const r = parseCommand(
+      'Create a goal retirement, and start a RD of 50,000 per month',
+      baseContext,
+    )
+    expect(r.structured.intent).toBe('CREATE_GOAL_WITH_ASSET')
+    expect(r.structured.goalName).toBe('Retirement')
+    expect(r.structured.assetName).toBe('RD')
+    expect(r.structured.monthlyInvestment).toBe(5000000)
+    expect(r.structured.investmentType).toBe('SIP')
+    expect(r.phase).toBe('needs_clarification')
+    expect(r.clarification?.question).toContain('target amount')
+  })
+
+  it('creates goal with RD when target amount is included', () => {
+    const r = parseCommand(
+      'Create a goal retirement for 1 crore, and start a RD of 50,000 per month',
+      baseContext,
+    )
+    expect(r.structured.intent).toBe('CREATE_GOAL_WITH_ASSET')
+    expect(r.structured.amount).toBe(1000000000)
+    expect(r.structured.monthlyInvestment).toBe(5000000)
+    expect(r.phase).toBe('needs_confirmation')
+  })
+
+  it('parseCommandAsync prefers bundled goal+RD over compound split', async () => {
+    const r = await parseCommandAsync(
+      'Create a goal retirement for 1 crore, and start a RD of 50,000 per month',
+      baseContext,
+    )
+    expect(r.structured.intent).toBe('CREATE_GOAL_WITH_ASSET')
+    expect(r.phase).toBe('needs_confirmation')
+  })
+
+  it('creates purchase goal with monthly MF investment', () => {
+    const r = parseCommand(
+      'I want to have a bike for 3L, to which I am thinking to put money 10k every month in a Mutual Fund',
+      baseContext,
+    )
+    expect(r.structured.intent).toBe('CREATE_GOAL_WITH_ASSET')
+    expect(r.structured.goalName).toBe('Bike')
+    expect(r.structured.amount).toBe(30000000)
+    expect(r.structured.monthlyInvestment).toBe(1000000)
+    expect(r.structured.assetName).toBe('Mutual Fund')
+    expect(r.structured.assetCategory).toBe('MF')
+    expect(r.phase).toBe('needs_confirmation')
+  })
+
+  it('creates gift goal with monthly SIP when target amount is unspecified', () => {
+    const r = parseCommand(
+      'i am thinking to gift myself a s26 ultra, for that i want to put 15k aside every month might be in some mutual fund, or sip',
+      baseContext,
+    )
+    expect(r.structured.intent).toBe('CREATE_GOAL_WITH_ASSET')
+    expect(r.structured.goalName).toBe('S26 Ultra')
+    expect(r.structured.monthlyInvestment).toBe(1500000)
+    expect(r.structured.assetName).toBe('Mutual Fund')
+    expect(r.phase).toBe('needs_clarification')
+    expect(r.clarification?.question).toContain('target amount')
+  })
+
   it('Open HDFC fund navigates to goal', () => {
     const r = parseCommand('Open my HDFC fund', baseContext)
     expect(r.structured.intent).toBe('OPEN_ASSET')

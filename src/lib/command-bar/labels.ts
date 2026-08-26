@@ -2,6 +2,7 @@ import type { CommandIntent } from '@/lib/command-bar/types'
 
 export const INTENT_LABELS: Record<CommandIntent, string> = {
   CREATE_GOAL: 'New goal',
+  CREATE_GOAL_WITH_ASSET: 'Goal with monthly investment',
   CREATE_ASSET: 'New asset',
   RECORD_INVESTMENT: 'Investment',
   CREATE_RECURRING_INVESTMENT: 'Monthly investment (SIP)',
@@ -31,6 +32,7 @@ export const INTENT_LABELS: Record<CommandIntent, string> = {
 export function isFinancialWriteIntent(intent: CommandIntent): boolean {
   return [
     'CREATE_GOAL',
+    'CREATE_GOAL_WITH_ASSET',
     'CREATE_ASSET',
     'RECORD_INVESTMENT',
     'CREATE_RECURRING_INVESTMENT',
@@ -90,7 +92,7 @@ export const EDITABLE_WRITE_INTENTS = [
 
 export type EditableWriteIntent = (typeof EDITABLE_WRITE_INTENTS)[number]
 
-export const CREATE_INTENTS = ['CREATE_GOAL', 'CREATE_ASSET', 'CREATE_LOAN'] as const
+export const CREATE_INTENTS = ['CREATE_GOAL', 'CREATE_GOAL_WITH_ASSET', 'CREATE_ASSET', 'CREATE_LOAN'] as const
 
 export type CreateIntent = (typeof CREATE_INTENTS)[number]
 

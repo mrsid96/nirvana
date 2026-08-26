@@ -54,6 +54,38 @@ describe('executeConfirmedIntent', () => {
     )
   })
 
+  it('creates a goal with RD asset tagged to it', async () => {
+    const finance = mockFinance()
+    await executeConfirmedIntent(
+      {
+        intent: 'CREATE_GOAL_WITH_ASSET',
+        confidence: 1,
+        amount: 1000000000,
+        goalName: 'Retirement',
+        targetDate: '2045-01-01',
+        assetName: 'RD',
+        assetCategory: 'FD',
+        monthlyInvestment: 5000000,
+        dayOfMonth: 1,
+      },
+      finance,
+    )
+    expect(finance.addGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Retirement', targetAmount: 1000000000 }),
+    )
+    expect(finance.addAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goalId: 'g-new',
+        name: 'RD',
+        category: 'FD',
+        investmentType: 'SIP',
+        monthlyInvestment: 5000000,
+        investedAmount: 0,
+        currentValue: 0,
+      }),
+    )
+  })
+
   it('creates an asset', async () => {
     const finance = mockFinance()
     await executeConfirmedIntent(

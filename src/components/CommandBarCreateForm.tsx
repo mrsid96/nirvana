@@ -28,6 +28,7 @@ export function CommandBarCreateForm({
   onChange,
   onConfirm,
   onCancel,
+  onBack,
   busy,
   confirmError,
 }: {
@@ -36,6 +37,7 @@ export function CommandBarCreateForm({
   onChange: (next: StructuredIntent) => void
   onConfirm: () => void
   onCancel: () => void
+  onBack?: () => void
   busy: boolean
   confirmError: string | null
 }) {
@@ -49,6 +51,7 @@ export function CommandBarCreateForm({
         busy={busy}
         onConfirm={onConfirm}
         onCancel={onCancel}
+        onBack={onBack}
       >
         <Field label="Goal name">
           <Input
@@ -101,6 +104,82 @@ export function CommandBarCreateForm({
     )
   }
 
+  if (structured.intent === 'CREATE_GOAL_WITH_ASSET') {
+    return (
+      <CreateShell
+        title={INTENT_LABELS.CREATE_GOAL_WITH_ASSET}
+        confirmError={confirmError}
+        busy={busy}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+        onBack={onBack}
+      >
+        <Field label="Goal name">
+          <Input
+            value={structured.goalName ?? ''}
+            onChange={(e) => onChange({ ...structured, goalName: e.target.value })}
+            required
+            aria-label="Goal name"
+          />
+        </Field>
+        <Field label="Target amount">
+          <Input
+            inputMode="decimal"
+            value={major(structured.amount)}
+            onChange={(e) => onChange({ ...structured, amount: minorFromMajor(e.target.value) })}
+            required
+            aria-label="Target amount"
+          />
+        </Field>
+        <Field label="Target date">
+          <Input
+            type="date"
+            value={structured.targetDate ?? addMonthsIso(today, 240)}
+            onChange={(e) => onChange({ ...structured, targetDate: e.target.value })}
+            required
+            aria-label="Target date"
+          />
+        </Field>
+        <Field label="Investment name">
+          <Input
+            value={structured.assetName ?? 'Mutual Fund'}
+            onChange={(e) => onChange({ ...structured, assetName: e.target.value })}
+            required
+            aria-label="Asset name"
+          />
+        </Field>
+        <Field label="Monthly investment">
+          <Input
+            inputMode="decimal"
+            value={major(structured.monthlyInvestment)}
+            onChange={(e) =>
+              onChange({
+                ...structured,
+                monthlyInvestment: minorFromMajor(e.target.value),
+                frequency: 'MONTHLY',
+                investmentType: 'SIP',
+              })
+            }
+            required
+            aria-label="Monthly RD amount"
+          />
+        </Field>
+        <Field label="Debit day of month">
+          <Input
+            type="number"
+            min={1}
+            max={31}
+            value={structured.dayOfMonth ?? 1}
+            onChange={(e) =>
+              onChange({ ...structured, dayOfMonth: Number(e.target.value) || 1 })
+            }
+            aria-label="Debit day"
+          />
+        </Field>
+      </CreateShell>
+    )
+  }
+
   if (structured.intent === 'CREATE_ASSET') {
     const categories = Object.keys(ASSET_CATEGORY_LABELS) as AssetCategory[]
     const sources = Object.keys(ASSET_SOURCE_LABELS) as AssetSource[]
@@ -111,6 +190,7 @@ export function CommandBarCreateForm({
         busy={busy}
         onConfirm={onConfirm}
         onCancel={onCancel}
+        onBack={onBack}
       >
         <Field label="Asset name">
           <Input
@@ -247,6 +327,7 @@ export function CommandBarCreateForm({
         busy={busy}
         onConfirm={onConfirm}
         onCancel={onCancel}
+        onBack={onBack}
       >
         <Field label="Loan name">
           <Input
@@ -385,6 +466,7 @@ function CreateShell({
   busy,
   onConfirm,
   onCancel,
+  onBack,
 }: {
   title: string
   children: ReactNode
@@ -392,6 +474,7 @@ function CreateShell({
   busy: boolean
   onConfirm: () => void
   onCancel: () => void
+  onBack?: () => void
 }) {
   return (
     <div className="space-y-4">
@@ -410,6 +493,11 @@ function CreateShell({
         {children}
       </div>
       {confirmError ? <p className="text-sm text-danger">{confirmError}</p> : null}
+      {onBack ? (
+        <Button variant="secondary" className="w-full" onClick={onBack}>
+          Back to options
+        </Button>
+      ) : null}
       <Button className="w-full" onClick={onConfirm} disabled={busy}>
         {confirmError ? 'Retry' : 'Create'}
       </Button>

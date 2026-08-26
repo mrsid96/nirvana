@@ -90,6 +90,20 @@ function TourTooltip({
     })
   }, [spotlight, title, description, stepIndex])
 
+  useEffect(() => {
+    const tooltipEl = tooltipRef.current
+    if (!tooltipEl || !spotlight) return
+
+    const update = () => {
+      setPosition(computeTooltipPosition(spotlight, TOOLTIP_WIDTH, tooltipEl.offsetHeight))
+    }
+
+    const observer = new ResizeObserver(update)
+    observer.observe(tooltipEl)
+    update()
+    return () => observer.disconnect()
+  }, [spotlight, stepIndex])
+
   if (!position) return null
 
   return (

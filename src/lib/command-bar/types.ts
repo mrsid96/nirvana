@@ -3,6 +3,7 @@ import type { SupportedCurrency } from '@/types/user'
 
 export const COMMAND_INTENTS = [
   'CREATE_GOAL',
+  'CREATE_GOAL_WITH_ASSET',
   'CREATE_ASSET',
   'RECORD_INVESTMENT',
   'CREATE_RECURRING_INVESTMENT',
@@ -43,6 +44,7 @@ export type ClarificationKind =
   | 'ambiguous_intent'
   | 'missing_amount'
   | 'compound_action'
+  | 'intent_guide'
 
 export interface ClarificationOption {
   id: string

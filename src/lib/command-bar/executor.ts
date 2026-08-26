@@ -168,6 +168,41 @@ export async function executeConfirmedIntent(
       })
       break
 
+    case 'CREATE_GOAL_WITH_ASSET': {
+      if (!intent.amount) throw new Error('Target amount is required')
+      const bundledGoalName = intent.goalName?.trim() || 'New goal'
+      const monthlyInvestment = intent.monthlyInvestment
+      if (!monthlyInvestment) throw new Error('Monthly investment amount is required')
+      const goalId = await finance.addGoal({
+        name: bundledGoalName,
+        description: intent.description,
+        targetAmount: intent.amount,
+        startDate: today,
+        targetDate: intent.targetDate ?? addMonthsIso(today, 240),
+        priority: intent.priority ?? 'medium',
+        status: 'active',
+      })
+      const bundledAssetName = intent.assetName?.trim() || 'RD'
+      const bundledCategory =
+        (intent.assetCategory as AssetCategory) ?? inferAssetCategory(bundledAssetName)
+      const bundledSource = mapAssetSource(intent.source)
+      await finance.addAsset({
+        goalId,
+        name: bundledAssetName,
+        category: bundledCategory,
+        source: bundledSource,
+        investmentType: 'SIP',
+        investedAmount: 0,
+        currentValue: 0,
+        totalWithdrawals: 0,
+        expectedCagr: intent.expectedCagr,
+        monthlyInvestment,
+        plannedInvestmentDay: intent.dayOfMonth ?? 1,
+        isActive: true,
+      })
+      break
+    }
+
     case 'CREATE_ASSET':
       if (!intent.amount) throw new Error('Amount is required')
       if (!intent.goalId) throw new Error('Choose a goal first')

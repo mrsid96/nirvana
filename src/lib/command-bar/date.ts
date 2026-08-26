@@ -4,6 +4,32 @@ import { addMonthsIso, todayIsoDate } from '@/lib/formatters/dates'
  * Extract date references from natural language.
  * Returns ISO date string.
  */
+export function extractTargetHorizon(text: string, today = todayIsoDate()): string | undefined {
+  const normalized = text.toLowerCase()
+
+  const yearsFromNow = normalized.match(/\b(\d+)\s*years?\s+from\s+now\b/)
+  if (yearsFromNow?.[1]) {
+    return addMonthsIso(today, Number(yearsFromNow[1]) * 12)
+  }
+
+  const monthsFromNow = normalized.match(/\b(\d+)\s*months?\s+from\s+now\b/)
+  if (monthsFromNow?.[1]) {
+    return addMonthsIso(today, Number(monthsFromNow[1]))
+  }
+
+  const inYears = normalized.match(/\bin\s+(\d+)\s*years?\b/)
+  if (inYears?.[1]) {
+    return addMonthsIso(today, Number(inYears[1]) * 12)
+  }
+
+  const inMonths = normalized.match(/\bin\s+(\d+)\s*months?\b/)
+  if (inMonths?.[1]) {
+    return addMonthsIso(today, Number(inMonths[1]))
+  }
+
+  return undefined
+}
+
 export function extractDate(text: string, today = todayIsoDate()): string | undefined {
   const normalized = text.toLowerCase()
 
@@ -17,6 +43,10 @@ export function extractDate(text: string, today = todayIsoDate()): string | unde
 
   // "5th", "on the 5th", "every 5th" — not a full date, skip here
   // "last week" etc. — skip for V1
+
+  if (/\bnext\s+year\b/.test(normalized)) {
+    return addMonthsIso(today, 12)
+  }
 
   return undefined
 }
@@ -45,6 +75,7 @@ export function isRecurringPhrase(text: string): boolean {
     /\bevery\s+month\b/.test(normalized) ||
     /\bmonthly\b/.test(normalized) ||
     /\beach\s+month\b/.test(normalized) ||
+    /\bper\s+month\b/.test(normalized) ||
     /\bsip\b/.test(normalized) ||
     /\brecurring\b/.test(normalized) ||
     /\bevery\s+\d{1,2}(?:st|nd|rd|th)?\b/.test(normalized) ||

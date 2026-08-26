@@ -74,7 +74,12 @@ export function extractGoalHint(
   }
   for (const kw of GOAL_KEYWORDS) {
     if (normalized.includes(kw)) {
-      if (kw === 'home' && normalized.includes('home loan')) continue
+      if (kw === 'home' && /\bhome\s+(loan|interior|renovation|improvement|decor)/i.test(normalized)) {
+        continue
+      }
+      if (kw === 'education' && /\bchild(?:'s)?\s+education\b/i.test(normalized)) {
+        return "Child education"
+      }
       return kw
     }
   }

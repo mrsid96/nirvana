@@ -11,6 +11,14 @@ export function validateCreateIntent(structured: StructuredIntent): string | nul
       if (!structured.targetDate) return 'Choose a target date'
       return null
 
+    case 'CREATE_GOAL_WITH_ASSET':
+      if (!structured.goalName?.trim()) return 'Enter a goal name'
+      if (!structured.amount) return 'Enter a target amount'
+      if (!structured.targetDate) return 'Choose a target date'
+      if (!structured.assetName?.trim()) return 'Enter an asset name'
+      if (!structured.monthlyInvestment) return 'Enter the monthly RD/SIP amount'
+      return null
+
     case 'CREATE_ASSET':
       if (!structured.assetName?.trim()) return 'Enter an asset name'
       if (!structured.goalId) return 'Choose a goal'

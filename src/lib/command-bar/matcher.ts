@@ -207,7 +207,11 @@ export function boostIntentsFromMentions(
     boosted.push({ intent: 'RECORD_INVESTMENT', weight: 0.78 })
   }
 
-  if (mentions.loan && /\b(paid|payment|emi)\b/.test(normalized)) {
+  if (
+    mentions.loan &&
+    /\b(paid|payment)\b/.test(normalized) &&
+    !/\b(create|new|add|take|took|borrow|borrowed|got)\b/.test(normalized)
+  ) {
     boosted.push({ intent: 'RECORD_LOAN_PAYMENT', weight: 0.86 })
   }
 

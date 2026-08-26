@@ -92,8 +92,8 @@ export function isElementVisible(element: Element): boolean {
 export async function scrollTourTargetIntoView(element: Element): Promise<void> {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   element.scrollIntoView({
-    block: 'center',
-    inline: 'center',
+    block: 'nearest',
+    inline: 'nearest',
     behavior: prefersReducedMotion ? 'auto' : 'smooth',
   })
   await waitForLayout(prefersReducedMotion ? 50 : 350)
@@ -143,17 +143,26 @@ export function computeTooltipPosition(
   const maxWidth = Math.min(tooltipWidth, window.innerWidth - viewportPadding * 2)
   const spaceAbove = spotlight.top - viewportPadding
   const spaceBelow = window.innerHeight - spotlight.top - spotlight.height - viewportPadding
-  const placement: TooltipPlacement =
+  let placement: TooltipPlacement =
     spaceBelow >= tooltipHeight + gap || spaceBelow >= spaceAbove ? 'bottom' : 'top'
+
+  if (placement === 'bottom' && spotlight.top + spotlight.height + gap + tooltipHeight > window.innerHeight - viewportPadding) {
+    placement = 'top'
+  }
+  if (placement === 'top' && spotlight.top - gap - tooltipHeight < viewportPadding) {
+    placement = 'bottom'
+  }
 
   const centerX = spotlight.left + spotlight.width / 2
   let left = centerX - maxWidth / 2
   left = Math.max(viewportPadding, Math.min(left, window.innerWidth - maxWidth - viewportPadding))
 
-  const top =
+  let top =
     placement === 'bottom'
       ? spotlight.top + spotlight.height + gap
       : spotlight.top - tooltipHeight - gap
+
+  top = Math.max(viewportPadding, Math.min(top, window.innerHeight - tooltipHeight - viewportPadding))
 
   return { top, left, placement, maxWidth }
 }

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, Mic, Pencil, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Mic, Pencil, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { CommandBarCreateForm } from '@/components/CommandBarCreateForm'
 import { CommandBarEditForm } from '@/components/CommandBarEditForm'
+import { CommandBarGuidePanel } from '@/components/CommandBarGuidePanel'
 import { Button, Card, Input, Pill } from '@/components/ui'
 import { useEffectiveAuth } from '@/contexts/DemoContext'
 import { useFinance } from '@/contexts/FinanceContext'
@@ -31,16 +32,18 @@ import {
   resolvePhaseAfterClarification,
 } from '@/lib/command-bar/parser'
 import { resolveQuery } from '@/lib/command-bar/queries'
+import { extractSlots, structuredFromGuideIntent, summarizeSlots } from '@/lib/command-bar/slot-resolver'
 import { validateCreateIntent } from '@/lib/command-bar/validateCreate'
 import { speechLocaleForCurrency } from '@/lib/speech/speechRecognition'
 import type {
   ClarificationOption,
+  CommandIntent,
   FinanceSnapshot,
   ParseResult,
   ParserContext,
   StructuredIntent,
 } from '@/lib/command-bar/types'
-import { formatDisplayDate, todayIsoDate, currentMonthKey } from '@/lib/formatters/dates'
+import { addMonthsIso, formatDisplayDate, todayIsoDate, currentMonthKey } from '@/lib/formatters/dates'
 import { formatMoney } from '@/lib/formatters/currency'
 import type { SupportedCurrency } from '@/types/user'
 
@@ -73,6 +76,7 @@ export function CommandBar({
   const [busy, setBusy] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [optionsReturnResult, setOptionsReturnResult] = useState<ParseResult | null>(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
 
   const goals = useMemo(
@@ -192,11 +196,31 @@ export function CommandBar({
     setBusy(false)
     setParsing(false)
     setConfirmError(null)
+    setOptionsReturnResult(null)
   }, [speech.stop])
+
+  function rememberOptionsScreen(result: ParseResult | null) {
+    if (!result) return
+    const hasOptionList =
+      (result.phase === 'needs_clarification' && (result.clarification?.options.length ?? 0) > 0) ||
+      result.phase === 'unknown'
+    if (hasOptionList) {
+      setOptionsReturnResult(result)
+    }
+  }
+
+  function goBackToOptions() {
+    if (!optionsReturnResult) return
+    setParseResult(optionsReturnResult)
+    setEditing(false)
+    setEditDraft(null)
+    setConfirmError(null)
+  }
 
   function openInput() {
     setBarState('input')
     setParseResult(null)
+    setOptionsReturnResult(null)
     setEditing(false)
     setEditDraft(null)
     setConfirmError(null)
@@ -205,6 +229,7 @@ export function CommandBar({
   async function processInput(input: string) {
     setParsing(true)
     setConfirmError(null)
+    setOptionsReturnResult(null)
     try {
       const result = await parseCommandAsync(input, parserContext)
       setParseResult(result)
@@ -219,6 +244,7 @@ export function CommandBar({
   }
 
   function processClauseInput(clause: string) {
+    rememberOptionsScreen(parseResult)
     const result = parseCommand(clause, parserContext)
     setParseResult(result)
     setBarState('result')
@@ -257,6 +283,25 @@ export function CommandBar({
     }
   }
 
+  function onGuideExample(phrase: string) {
+    setText(phrase)
+    void processInput(phrase)
+  }
+
+  function onGuideIntentPick(intent: CommandIntent) {
+    if (!parseResult) return
+    rememberOptionsScreen(parseResult)
+    let structured = structuredFromGuideIntent(intent, parseResult.input, parserContext)
+    if (intent === 'CREATE_GOAL' || intent === 'CREATE_GOAL_WITH_ASSET') {
+      structured = {
+        ...structured,
+        targetDate: structured.targetDate ?? addMonthsIso(todayIsoDate(), 240),
+      }
+    }
+    const phase = resolvePhaseAfterClarification(structured, parserContext)
+    setParseResult({ ...parseResult, structured, phase, clarification: undefined })
+  }
+
   function onSubmit(event?: FormEvent) {
     event?.preventDefault()
     const trimmed = text.trim()
@@ -266,6 +311,7 @@ export function CommandBar({
 
   function onClarificationSelect(option: ClarificationOption) {
     if (!parseResult) return
+    rememberOptionsScreen(parseResult)
 
     if (option.type === 'compound') {
       processClauseInput(option.id)
@@ -506,7 +552,12 @@ export function CommandBar({
               setParseResult(null)
               setConfirmError(null)
             }}
+            onGuideExample={onGuideExample}
+            onGuideIntentPick={onGuideIntentPick}
+            parserContext={parserContext}
             onClose={reset}
+            onBackToOptions={goBackToOptions}
+            canGoBack={optionsReturnResult !== null}
             onStructuredChange={(structured) =>
               setParseResult((prev) => (prev ? { ...prev, structured } : null))
             }
@@ -537,7 +588,12 @@ function ResultPanel({
   onClarificationSelect,
   onMissingAmount,
   onRetry,
+  onGuideExample,
+  onGuideIntentPick,
+  parserContext,
   onClose,
+  onBackToOptions,
+  canGoBack,
   onStructuredChange,
 }: {
   result: ParseResult
@@ -559,27 +615,26 @@ function ResultPanel({
   onClarificationSelect: (option: ClarificationOption) => void
   onMissingAmount: (minor: number) => void
   onRetry: () => void
+  onGuideExample: (phrase: string) => void
+  onGuideIntentPick: (intent: CommandIntent) => void
+  parserContext: ParserContext
   onClose: () => void
+  onBackToOptions: () => void
+  canGoBack: boolean
   onStructuredChange: (structured: StructuredIntent) => void
 }) {
   const { structured, phase, clarification } = result
 
   if (phase === 'unknown') {
     return (
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-ink-muted">I didn&apos;t quite get that. Try something like:</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-ink-faint">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <ul className="space-y-1 text-sm text-ink dark:text-white">
-          <li>&quot;Invest ₹20,000 in retirement&quot;</li>
-          <li>&quot;Spent ₹1,500 on groceries&quot;</li>
-        </ul>
-        <p className="text-xs text-ink-faint">Your text: {result.input}</p>
-        <Button variant="secondary" onClick={onRetry} className="w-full">Try again</Button>
-      </div>
+      <CommandBarGuidePanel
+        input={result.input}
+        slotHints={summarizeSlots(extractSlots(result.input, parserContext))}
+        onExample={onGuideExample}
+        onIntentPick={onGuideIntentPick}
+        onRetry={onRetry}
+        onClose={onClose}
+      />
     )
   }
 
@@ -649,6 +704,7 @@ function ResultPanel({
         onChange={onStructuredChange}
         onConfirm={onConfirm}
         onCancel={onClose}
+        onBack={canGoBack ? onBackToOptions : undefined}
         busy={busy}
         confirmError={confirmError}
       />
@@ -717,15 +773,23 @@ function ResultPanel({
         ) : null}
 
         {!editing ? (
-          <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1" onClick={onStartEdit}>
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-            <Button className="flex-1" onClick={onConfirm} disabled={busy}>
-              <Check className="h-4 w-4" />
-              {confirmError ? 'Retry' : 'Confirm'}
-            </Button>
+          <div className="flex flex-col gap-2">
+            {canGoBack ? (
+              <Button variant="secondary" className="w-full" onClick={onBackToOptions}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to options
+              </Button>
+            ) : null}
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={onStartEdit}>
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+              <Button className="flex-1" onClick={onConfirm} disabled={busy}>
+                <Check className="h-4 w-4" />
+                {confirmError ? 'Retry' : 'Confirm'}
+              </Button>
+            </div>
           </div>
         ) : null}
       </div>

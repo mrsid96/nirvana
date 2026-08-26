@@ -131,8 +131,33 @@ export function scoreFinancialIntents(
     signals.push({ intent: 'CREATE_ASSET', weight: 0.85 })
   }
 
-  if (/\b(create|new|add)\b.*\bloan\b/.test(normalized)) {
-    signals.push({ intent: 'CREATE_LOAN', weight: 0.85 })
+  if (/\b(create|new|add|set up|setup)\b.*\bloan\b/.test(normalized)) {
+    signals.push({ intent: 'CREATE_LOAN', weight: 0.92 })
+  }
+
+  if (
+    /\b(take|took|taken|get|got|borrow|borrowed|availed)\b[^.]{0,50}?\bloan\b/.test(normalized) &&
+    /\b(pay|repay|repayment|emi|per month|every month|monthly)\b/.test(normalized)
+  ) {
+    signals.push({ intent: 'CREATE_LOAN', weight: 0.9 })
+  }
+
+  if (
+    /\b(have to|need to|will|going to)\b[^.]{0,40}?\b(pay|repay|emi)\b/.test(normalized) &&
+    /\bloan\b/.test(normalized)
+  ) {
+    signals.push({ intent: 'CREATE_LOAN', weight: 0.88 })
+  }
+
+  if (
+    /\b(start|begin|open|setup|set up)\b/.test(normalized) &&
+    /\b(rd|recurring deposit|sip|monthly deposit)\b/.test(normalized)
+  ) {
+    signals.push({
+      intent: 'CREATE_ASSET',
+      weight: isRecurring ? 0.9 : 0.82,
+      requiresRecurring: isRecurring,
+    })
   }
 
   return signals.sort((a, b) => b.weight - a.weight)
@@ -149,7 +174,7 @@ export function hasAmbiguousInvestIntent(text: string): boolean {
 export function hasAmbiguousLoanIntent(text: string): boolean {
   const normalized = text.toLowerCase()
   const hasPaid = /\b(paid|payment)\b/.test(normalized)
-  const hasRecurring = /\b(every month|monthly|each month|emi is)\b/.test(normalized)
+  const hasRecurring = /\b(every month|monthly|each month|per month|emi is)\b/.test(normalized)
   const hasPast = /\b(today|yesterday|paid)\b/.test(normalized)
   return hasPaid && hasRecurring && hasPast && /\b(loan|emi)\b/.test(normalized)
 }

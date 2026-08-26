@@ -196,6 +196,7 @@ export function DashboardPage() {
             value: 'notifications',
             label: notificationCount > 0 ? 'Notifications' : 'All caught up',
             badge: notificationCount > 0 ? notificationCount : undefined,
+            tourId: 'notifications',
           },
         ]}
       />

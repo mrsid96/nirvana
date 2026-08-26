@@ -19,7 +19,7 @@ export function extractAmount(text: string, currency: SupportedCurrency): number
 
   // Number + lakh/lac/L: 2.8 lakh, 2.5L, 50k
   const suffixMatch = normalized.match(
-    /([\d]+(?:\.\d+)?)\s*(k|l|lac|lakh|cr|crore)\b/i,
+    /([\d]+(?:\.\d+)?)\s*(k|l|lac|lakh|lacs|lakhs|cr|crore)\b/i,
   )
   if (suffixMatch) {
     return parseAmountParts(Number(suffixMatch[1]), suffixMatch[2], currency)
@@ -54,7 +54,8 @@ function parseAmountParts(
   let major = value
   const s = suffix?.toLowerCase()
   if (s === 'k') major = value * 1_000
-  else if (s === 'l' || s === 'lac' || s === 'lakh') major = value * LAKH_MULTIPLIER
+  else if (s === 'l' || s === 'lac' || s === 'lakh' || s === 'lacs' || s === 'lakhs')
+    major = value * LAKH_MULTIPLIER
   else if (s === 'cr' || s === 'crore') major = value * CRORE_MULTIPLIER
 
   return toMinorUnits(major, currency)

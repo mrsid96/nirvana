@@ -11,6 +11,7 @@ import {
 import {
   extractDate,
   extractDayOfMonth,
+  extractTargetHorizon,
   isPastActionPhrase,
   isRecurringPhrase,
 } from '@/lib/command-bar/date'
@@ -33,6 +34,17 @@ import {
 } from '@/lib/command-bar/matcher'
 import { isNavigationIntent, isQueryIntent, INTENT_LABELS } from '@/lib/command-bar/labels'
 import { splitCompoundInput, summarizeClause } from '@/lib/command-bar/compound'
+import { detectGoalWithRecurringAsset, extractMonthlyAmount } from '@/lib/command-bar/bundled-intents'
+import { parseFinancialEntities } from '@/lib/command-bar/entity-parser'
+import { entityActionsToStructuredIntent } from '@/lib/command-bar/intent-adapter'
+import {
+  detectNarrativeLoan,
+  extractLoanPurpose,
+  extractSlots,
+  extractTenureMonths,
+  resolveFromSlots,
+  summarizeSlots,
+} from '@/lib/command-bar/slot-resolver'
 import type {
   CommandIntent,
   ParseResult,
@@ -43,6 +55,17 @@ import type {
 const DEV = import.meta.env.DEV
 
 export async function parseCommandAsync(input: string, context: ParserContext): Promise<ParseResult> {
+  const text = input.trim()
+  const narrativeLoan = detectNarrativeLoan(text, context)
+  if (narrativeLoan) {
+    return enrichStructuredIntent(text, narrativeLoan, context, performance.now())
+  }
+
+  const bundled = detectGoalWithRecurringAsset(text, context)
+  if (bundled) {
+    return enrichStructuredIntent(text, bundled, context, performance.now())
+  }
+
   const clauses = splitCompoundInput(input)
   if (clauses.length > 1) {
     const clauseResults = clauses.map((clause) => parseCommand(clause, context))
@@ -177,6 +200,16 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
     return buildResult(text, structured, 'ready', start)
   }
 
+  const narrativeLoan = detectNarrativeLoan(text, context)
+  if (narrativeLoan) {
+    return enrichStructuredIntent(text, narrativeLoan, context, start)
+  }
+
+  const bundled = detectGoalWithRecurringAsset(text, context)
+  if (bundled) {
+    return enrichStructuredIntent(text, bundled, context, start)
+  }
+
   const isRecurring = isRecurringPhrase(text)
   const isPast = isPastActionPhrase(text)
 
@@ -237,7 +270,17 @@ export function parseCommand(input: string, context: ParserContext): ParseResult
   const confidence = topSignal?.weight ?? 0.3
 
   if (intent === 'UNKNOWN' || confidence < 0.5) {
-    return buildResult(text, { intent: 'UNKNOWN', confidence: 0.2, parserMethod: 'unknown' }, 'unknown', start)
+    const entityResult = parseFinancialEntities(text, context)
+    const entityIntent = entityActionsToStructuredIntent(entityResult, context)
+    if (entityIntent && entityIntent.confidence >= 0.85) {
+      return enrichStructuredIntent(text, entityIntent, context, start)
+    }
+
+    const slotResolved = resolveFromSlots(text, context)
+    if (slotResolved) {
+      return enrichStructuredIntent(text, slotResolved, context, start)
+    }
+    return buildGuideResult(text, context, start)
   }
 
   const amount = extractAmount(text, context.currency)
@@ -302,6 +345,35 @@ function enrichStructuredIntent(
     return buildResult(text, structured, 'needs_confirmation', start)
   }
 
+  if (intent === 'CREATE_GOAL_WITH_ASSET') {
+    structured.goalName =
+      structured.goalName ?? extractGoalHint(text, context.goals) ?? structured.description ?? 'New goal'
+    structured.assetName = structured.assetName ?? 'Monthly Savings'
+    structured.assetCategory = structured.assetCategory ?? 'FD'
+    structured.investmentType = 'SIP'
+    structured.targetDate =
+      structured.targetDate ??
+      extractTargetHorizon(text, today) ??
+      addMonthsIso(today, 240)
+    structured.monthlyInvestment =
+      structured.monthlyInvestment ?? extractMonthlyAmount(text, context.currency)
+    if (!structured.amount) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'missing_amount',
+        question: 'What target amount for this goal?',
+        options: [],
+      })
+    }
+    if (!structured.monthlyInvestment) {
+      return buildResult(text, structured, 'needs_clarification', start, {
+        kind: 'missing_amount',
+        question: 'How much per month for the RD/SIP?',
+        options: [],
+      })
+    }
+    return buildResult(text, structured, 'needs_confirmation', start)
+  }
+
   if (intent === 'CREATE_ASSET') {
     structured.assetName =
       structured.assetName ?? extractAssetHint(text) ?? structured.description ?? 'New asset'
@@ -336,16 +408,30 @@ function enrichStructuredIntent(
 
   if (intent === 'CREATE_LOAN') {
     structured.loanName =
-      structured.loanName ?? extractLoanHint(text) ?? structured.description ?? 'New loan'
-    if (amount) {
-      structured.originalAmount = amount
-      structured.outstandingAmount = amount
-      structured.emiAmount = amount
+      structured.loanName ??
+      extractLoanPurpose(text) ??
+      extractLoanHint(text) ??
+      structured.description ??
+      'New loan'
+    const emi = structured.emiAmount ?? extractMonthlyAmount(text, context.currency)
+    const tenure = structured.tenureMonths ?? extractTenureMonths(text)
+    if (emi) structured.emiAmount = emi
+    if (tenure) structured.tenureMonths = tenure
+
+    const principal =
+      structured.originalAmount ??
+      (amount && amount !== emi ? amount : undefined) ??
+      (emi && tenure ? emi * tenure : undefined)
+    if (principal) {
+      structured.originalAmount = principal
+      structured.outstandingAmount = structured.outstandingAmount ?? principal
+      structured.amount = principal
     }
-    if (!amount) {
+
+    if (!structured.originalAmount && !structured.emiAmount) {
       return buildResult(text, structured, 'needs_clarification', start, {
         kind: 'missing_amount',
-        question: 'What is the loan amount or EMI?',
+        question: 'What is the loan amount or monthly EMI?',
         options: [],
       })
     }
@@ -579,13 +665,20 @@ export function resolvePhaseAfterClarification(
     return 'needs_confirmation'
   }
 
-  if (structured.intent === 'CREATE_ASSET') {
-    if (!structured.amount || !structured.goalId) return 'needs_clarification'
+  if (structured.intent === 'CREATE_GOAL_WITH_ASSET') {
+    if (!structured.amount || !structured.monthlyInvestment) return 'needs_clarification'
     return 'needs_confirmation'
   }
 
   if (structured.intent === 'CREATE_LOAN') {
-    if (!structured.amount) return 'needs_clarification'
+    if (!structured.originalAmount && !structured.emiAmount && !structured.amount) {
+      return 'needs_clarification'
+    }
+    return 'needs_confirmation'
+  }
+
+  if (structured.intent === 'CREATE_ASSET') {
+    if (!structured.amount || !structured.goalId) return 'needs_clarification'
     return 'needs_confirmation'
   }
 
@@ -638,4 +731,22 @@ function matchSkipOccurrence(
     return { match: only, matches: [only], ambiguous: false }
   }
   return { matches: pool, ambiguous: pool.length > 1 }
+}
+
+function buildGuideResult(text: string, context: ParserContext, start: number): ParseResult {
+  const hints = summarizeSlots(extractSlots(text, context))
+  return buildResult(
+    text,
+    { intent: 'UNKNOWN', confidence: 0.2, parserMethod: 'guide' },
+    'unknown',
+    start,
+    {
+      kind: 'intent_guide',
+      question:
+        hints.length > 0
+          ? `I noticed ${hints.join(', ')}. What were you trying to do?`
+          : 'What were you trying to do?',
+      options: [],
+    },
+  )
 }

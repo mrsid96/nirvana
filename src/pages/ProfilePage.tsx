@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Compass, Globe, LogOut, Palette, Wallet } from 'lucide-react'
+import { Globe, LogOut, Palette, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { DemoConversionPrompt } from '@/components/DemoConversionPrompt'
+import { ProfileFaqSection } from '@/components/ProfileFaqSection'
+import { ProfileHelpSection } from '@/components/ProfileHelpSection'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, Card, Field, SectionTitle, Select } from '@/components/ui'
 import { useDemo, useEffectiveAuth } from '@/contexts/DemoContext'
@@ -13,9 +15,6 @@ import { migrateFirestoreV1, rebuildDerivedData } from '@/dev/firestoreMigration
 import { COUNTRIES } from '@/lib/money'
 import { applyThemeToDocument, persistTheme } from '@/lib/theme'
 import type { SupportedCurrency, ThemeMode } from '@/types/user'
-
-const DISCLAIMER =
-  'This application is a personal financial tracking and planning tool. Projections are estimates based on user-entered assumptions and are not guaranteed returns or financial advice.'
 
 export function ProfilePage() {
   const { profile, settings, saveSettings, signOutUser, user, isDemoMode, promptSignup, exitDemoMode } =
@@ -143,6 +142,54 @@ export function ProfilePage() {
     void (isDemoMode ? (exitDemoMode ?? exitDemo)() : signOutUser())
   }
 
+  const yourDataSection = !isDemoMode ? (
+    <section className="order-5 space-y-3 lg:order-none">
+      <SectionTitle title="Your data" />
+      <Card className="space-y-3">
+        <Button variant="secondary" className="w-full" onClick={() => void onExport()}>
+          Export my data
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full text-peach"
+          disabled={busy}
+          onClick={() => void onClearAllData()}
+        >
+          Clear all financial data
+        </Button>
+        {import.meta.env.DEV ? (
+          <>
+            <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onSeedDemo()}>
+              Load demo data (dev only)
+            </Button>
+            <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRunMigration()}>
+              Run Firestore migration (dev only)
+            </Button>
+            <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRebuildDerived()}>
+              Rebuild derived summaries (dev only)
+            </Button>
+          </>
+        ) : null}
+      </Card>
+    </section>
+  ) : (
+    <section className="order-5 space-y-3 lg:order-none">
+      <SectionTitle title="Demo session" />
+      <Card className="space-y-3">
+        <p className="text-sm text-ink-muted">
+          Changes you make here stay on this device for this session only. Refresh the page to reset
+          demo data.
+        </p>
+        <Button className="w-full" onClick={() => void promptSignup?.()}>
+          Create your Nirvana account
+        </Button>
+        <Button variant="secondary" className="w-full" onClick={exitDemoMode ?? exitDemo}>
+          Exit demo
+        </Button>
+      </Card>
+    </section>
+  )
+
   return (
     <div className="space-y-6">
       {isDemoMode ? <DemoConversionPrompt /> : null}
@@ -154,9 +201,9 @@ export function ProfilePage() {
         className="lg:hidden"
       />
 
-      <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <aside className="space-y-6 lg:sticky lg:top-6">
-          <Card className="overflow-hidden p-0">
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <aside className="contents lg:flex lg:flex-col lg:gap-6 lg:sticky lg:top-6">
+          <Card className="order-1 overflow-hidden p-0 lg:order-none">
             <div className="bg-gradient-to-br from-accent/10 via-mint/5 to-transparent px-6 py-8 text-center lg:text-left">
               {profile?.photoURL ? (
                 <img
@@ -176,7 +223,7 @@ export function ProfilePage() {
                 {isDemoMode ? 'Exploring with sample data' : profile?.email}
               </p>
             </div>
-            <div className="border-t border-ink/5 px-4 py-3 dark:border-white/10">
+            <div className="hidden border-t border-ink/5 px-4 py-3 dark:border-white/10 lg:block">
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-2 text-ink-muted"
@@ -188,40 +235,10 @@ export function ProfilePage() {
             </div>
           </Card>
 
-          {!isDemoMode ? (
-            <section className="space-y-3">
-              <SectionTitle title="Help & guidance" />
-              <Card>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 rounded-[14px] px-1 py-1 text-left transition hover:bg-ink/5 dark:hover:bg-white/5"
-                  onClick={() => appTour?.startTour({ replay: true })}
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
-                    <Compass className="h-4 w-4" strokeWidth={2} />
-                  </span>
-                  <span>
-                    <span className="block font-semibold text-ink dark:text-white">
-                      Take app tour again
-                    </span>
-                    <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-                      Revisit the guided walkthrough of Dashboard, Wealth, Loans, and more
-                    </span>
-                  </span>
-                </button>
-              </Card>
-            </section>
-          ) : null}
-
-          <section className="space-y-3">
-            <SectionTitle title="About" />
-            <Card>
-              <p className="text-sm leading-relaxed text-ink-muted">{DISCLAIMER}</p>
-            </Card>
-          </section>
+          {yourDataSection}
         </aside>
 
-        <div className="mt-6 space-y-6 lg:mt-0">
+        <div className="contents lg:block lg:space-y-6">
           <PageHeader
             title="Your"
             accent="profile"
@@ -229,7 +246,7 @@ export function ProfilePage() {
             className="hidden lg:flex"
           />
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="order-2 grid gap-6 lg:order-none lg:grid-cols-2 lg:items-start">
             <section className="space-y-3">
               <SectionTitle title="Preferences" />
               <Card>
@@ -257,7 +274,9 @@ export function ProfilePage() {
                           <Wallet className="h-4 w-4 shrink-0 text-ink-muted" />
                           <Select
                             value={currency}
-                            onChange={(event) => setCurrency(event.target.value as SupportedCurrency)}
+                            onChange={(event) =>
+                              setCurrency(event.target.value as SupportedCurrency)
+                            }
                             className="flex-1"
                           >
                             {['INR', 'USD', 'EUR', 'GBP', 'SGD', 'AED'].map((item) => (
@@ -298,58 +317,22 @@ export function ProfilePage() {
               </Card>
             </section>
 
-            {!isDemoMode ? (
-              <section className="space-y-3">
-                <SectionTitle title="Your data" />
-                <Card className="space-y-3">
-                  <Button variant="secondary" className="w-full" onClick={() => void onExport()}>
-                    Export my data
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full text-peach"
-                    disabled={busy}
-                    onClick={() => void onClearAllData()}
-                  >
-                    Clear all financial data
-                  </Button>
-                  {import.meta.env.DEV ? (
-                    <>
-                      <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onSeedDemo()}>
-                        Load demo data (dev only)
-                      </Button>
-                      <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRunMigration()}>
-                        Run Firestore migration (dev only)
-                      </Button>
-                      <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void onRebuildDerived()}>
-                        Rebuild derived summaries (dev only)
-                      </Button>
-                    </>
-                  ) : null}
-                </Card>
-              </section>
-            ) : (
-              <section className="space-y-3">
-                <SectionTitle title="Demo session" />
-                <Card className="space-y-3">
-                  <p className="text-sm text-ink-muted">
-                    Changes you make here stay on this device for this session only. Refresh the
-                    page to reset demo data.
-                  </p>
-                  <Button className="w-full" onClick={() => void promptSignup?.()}>
-                    Create your Nirvana account
-                  </Button>
-                  <Button variant="secondary" className="w-full" onClick={exitDemoMode ?? exitDemo}>
-                    Exit demo
-                  </Button>
-                </Card>
-              </section>
-            )}
+            <section className="space-y-3">
+              <SectionTitle title="FAQ" />
+              <ProfileFaqSection />
+            </section>
+          </div>
+
+          <div className="order-4 lg:order-none">
+            <ProfileHelpSection
+              showTour={!isDemoMode}
+              onStartTour={() => appTour?.startTour({ replay: true })}
+            />
           </div>
 
           <Button
             variant="ghost"
-            className="w-full text-ink-muted lg:hidden"
+            className="order-6 w-full text-ink-muted lg:hidden"
             onClick={handleSignOut}
           >
             {isDemoMode ? 'Exit demo' : 'Sign out'}

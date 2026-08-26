@@ -157,7 +157,7 @@ export function NotificationsTab({ currency }: { currency: SupportedCurrency }) 
   }
 
   return (
-    <div className="space-y-5" data-tour="notifications">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-ink dark:text-white">Scheduled finances</h2>
