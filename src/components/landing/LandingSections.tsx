@@ -1,15 +1,13 @@
 import { type ElementType, type FormEvent, type ReactNode } from 'react'
 import {
+  ArrowRight,
   Ban,
   BarChart3,
-  Building2,
-  Coins,
-  HeartPulse,
-  IndianRupee,
   Landmark,
   Lock,
   MessageSquareText,
   PiggyBank,
+  Play,
   Receipt,
   Shield,
   SlidersHorizontal,
@@ -102,10 +100,10 @@ function IconBadge({
   )
 }
 
-function SectionEyebrow({ children }: { children: ReactNode }) {
+function SectionEyebrow({ children, icon: Icon = Sparkles }: { children: ReactNode; icon?: ElementType<{ className?: string; strokeWidth?: number }> }) {
   return (
-    <p className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-      <Coins className="h-3.5 w-3.5" strokeWidth={2.2} />
+    <p className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-accent/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent backdrop-blur-sm">
+      <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
       {children}
     </p>
   )
@@ -124,8 +122,58 @@ function SectionTitle({ children, className }: { children: ReactNode; className?
   )
 }
 
-function MoneyFloaters() {
-  const chips = ['₹', '$', '€', '₹42L', '+24%', 'SIP', 'EMI', '₹']
+function FeatureCard({
+  icon,
+  tone,
+  title,
+  stat,
+  text,
+  examples,
+}: {
+  icon: ElementType<{ className?: string; strokeWidth?: number }>
+  tone: CardTone
+  title: string
+  stat: string
+  text: string
+  examples?: string[]
+}) {
+  return (
+    <article
+      className={cn(
+        'landing-card flex h-full flex-col overflow-hidden rounded-[24px] border bg-gradient-to-br p-5 shadow-[var(--shadow-soft)]',
+        toneStyles[tone].card,
+        toneStyles[tone].ring,
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <IconBadge icon={icon} tone={tone} />
+        <span
+          className={cn(
+            'rounded-full px-2.5 py-1 text-xs font-bold tabular-nums',
+            toneStyles[tone].badge,
+          )}
+        >
+          {stat}
+        </span>
+      </div>
+      <h3 className="mt-4 text-lg font-semibold text-ink dark:text-white">{title}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-muted">{text}</p>
+      {examples ? (
+        <ul className="mt-4 space-y-2 border-t border-ink/5 pt-4 dark:border-white/8">
+          {examples.map((example) => (
+            <li key={example} className="flex items-start gap-2 text-sm text-ink-muted">
+              <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
+              <span className="leading-relaxed">&ldquo;{example}&rdquo;</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
+  )
+}
+
+function AmbientFloaters() {
+  const chips = ['SIP', 'EMI', '+24%', 'Goals', 'Net worth', 'Cash flow', 'SIP', 'Ahead']
   return (
     <div className="landing-money-floaters pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {chips.map((chip, index) => (
@@ -152,22 +200,96 @@ function MoneyFloaters() {
 
 function LandingShell({ children }: { children: ReactNode }) {
   return (
-    <div className="landing-shell relative min-h-dvh bg-canvas text-ink dark:bg-canvas-dark dark:text-white">
+    <div className="landing-shell relative min-h-dvh overflow-x-hidden bg-canvas text-ink dark:bg-canvas-dark dark:text-white">
+      <div className="landing-aurora pointer-events-none absolute inset-0" aria-hidden />
       <div className="landing-grid pointer-events-none absolute inset-0" aria-hidden />
       <div className="landing-glow landing-glow-a pointer-events-none absolute inset-0" aria-hidden />
       <div className="landing-glow landing-glow-b pointer-events-none absolute inset-0" aria-hidden />
       <div className="landing-glow landing-glow-c pointer-events-none absolute inset-0" aria-hidden />
-      <MoneyFloaters />
+      <AmbientFloaters />
       {children}
     </div>
   )
 }
 
 const heroStats = [
-  { label: 'Net worth', value: '₹42.8L', tone: 'accent' as const },
-  { label: 'Assets tracked', value: '₹60.8L', tone: 'mint' as const },
-  { label: 'Monthly income', value: '₹3.8L', tone: 'gold' as const },
-  { label: 'Free cash flow', value: '₹2.4L', tone: 'success' as const },
+  { label: 'Net worth', value: '42.8L', tone: 'accent' as const },
+  { label: 'Assets tracked', value: '60.8L', tone: 'mint' as const },
+  { label: 'Monthly income', value: '3.8L', tone: 'gold' as const },
+  { label: 'Free cash flow', value: '2.4L', tone: 'success' as const },
+]
+
+const featureCards = [
+  {
+    icon: BarChart3,
+    tone: 'accent' as const,
+    title: 'Dashboard',
+    stat: 'One snapshot',
+    text: 'Wealth, investments, loans, cash flow, and quick actions in one colourful view.',
+  },
+  {
+    icon: Target,
+    tone: 'mint' as const,
+    title: 'Wealth goals',
+    stat: '4 goals · 68% ahead',
+    text: 'Retirement, emergency fund, education, home — ahead, on track, or behind at a glance.',
+  },
+  {
+    icon: TrendingUp,
+    tone: 'sky' as const,
+    title: 'Investments',
+    stat: '37.8L tracked',
+    text: 'Mutual funds, stocks, EPF, FDs, gold, PPF, NPS, cash — allocation, gains, and SIPs.',
+  },
+  {
+    icon: Landmark,
+    tone: 'peach' as const,
+    title: 'Loans',
+    stat: '18L outstanding',
+    text: 'Home loan EMIs, outstanding balances, payment history, and debt progress.',
+  },
+  {
+    icon: Receipt,
+    tone: 'gold' as const,
+    title: 'Income & expenses',
+    stat: '3.8L this month',
+    text: 'Salary, bonus, spending, and monthly statements that feed your cash-flow view.',
+  },
+  {
+    icon: MessageSquareText,
+    tone: 'success' as const,
+    title: 'Natural language',
+    stat: 'Type & go',
+    text: 'Describe what happened in plain language — Nirvana detects intent and extracts the details to act on.',
+    examples: [
+      'Invested 50,000 in HDFC Flexi Cap.',
+      'Spent 25,000 on home interiors.',
+      'Taking a 30L home loan at 8.5% for 7 years.',
+    ],
+  },
+]
+
+const intentExamples = [
+  {
+    input: 'Invested 50,000 in HDFC Flexi Cap',
+    action: 'Records investment',
+    tone: 'mint' as const,
+  },
+  {
+    input: 'Spent 25,000 on home interiors',
+    action: 'Logs expense',
+    tone: 'peach' as const,
+  },
+  {
+    input: 'Taking a 30L home loan at 8.5%',
+    action: 'Creates loan',
+    tone: 'sky' as const,
+  },
+  {
+    input: 'Add 20k monthly to my retirement goal',
+    action: 'Updates recurring SIP',
+    tone: 'accent' as const,
+  },
 ]
 
 export function LandingNav({
@@ -180,7 +302,7 @@ export function LandingNav({
   signInReady: boolean
 }) {
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-accent/10 bg-canvas/90 backdrop-blur-xl dark:border-accent/15 dark:bg-canvas-dark/90">
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-white/20 bg-canvas/75 backdrop-blur-2xl dark:border-white/10 dark:bg-canvas-dark/75">
       <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-4 px-5 sm:h-[4.5rem] sm:px-8">
         <NirvanaHorizontalLogo size="nav" className="shrink-0" />
         <form onSubmit={onSignIn}>
@@ -207,28 +329,30 @@ export function LandingHero({
 }) {
   return (
     <section className="relative px-5 pb-10 pt-24 sm:px-8 sm:pb-12 sm:pt-28 lg:pb-16 lg:pt-32">
-      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
+      <div className="landing-hero-spotlight pointer-events-none absolute left-1/2 top-24 h-[28rem] w-[min(56rem,120vw)] -translate-x-1/2 rounded-full opacity-80" aria-hidden />
+
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
         <div className="mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
           <SectionEyebrow>Wealth tracker for real financial life</SectionEyebrow>
 
-          <h1 className="hero-reveal hero-delay-1 mt-5 font-serif text-[2.35rem] font-medium leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-[3.35rem] dark:text-white">
+          <h1 className="hero-reveal hero-delay-1 mt-5 font-serif text-[2.35rem] font-medium leading-[1.06] tracking-tight text-ink sm:text-5xl lg:text-[3.5rem] dark:text-white">
             Your money.{' '}
             <span className="hero-shimmer-text italic">One clear picture.</span>
           </h1>
 
           <p className="hero-reveal hero-delay-2 mt-5 text-base leading-relaxed text-ink-muted sm:text-lg">
-            Track income, expenses, investments, assets, liabilities and net worth — all in one
-            vibrant dashboard built for real financial life.
+            Track income, expenses, investments, assets, liabilities and net worth — then log
+            what happened in plain language and let Nirvana handle the rest.
           </p>
 
           <div className="hero-reveal hero-delay-3 mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
             <Button
               type="button"
               size="lg"
-              className="w-full bg-gradient-to-r from-accent to-violet-600 shadow-[var(--shadow-fab)] sm:w-auto sm:min-w-[190px]"
+              className="w-full bg-gradient-to-r from-accent via-violet-600 to-mint shadow-[0_16px_40px_rgba(102,87,232,0.35)] sm:w-auto sm:min-w-[190px]"
               onClick={onTryDemo}
             >
-              <IndianRupee className="h-5 w-5" strokeWidth={2.2} />
+              <Play className="h-5 w-5 fill-current" strokeWidth={0} />
               Try Nirvana
             </Button>
             <form onSubmit={onSignIn} className="w-full sm:w-auto">
@@ -236,7 +360,7 @@ export function LandingHero({
                 type="submit"
                 size="lg"
                 variant="secondary"
-                className="w-full border-accent/15 sm:min-w-[190px]"
+                className="w-full border-accent/15 bg-surface/70 backdrop-blur-sm sm:min-w-[190px]"
                 disabled={signInBusy || !signInReady}
               >
                 <GoogleMark />
@@ -251,7 +375,7 @@ export function LandingHero({
             </p>
           ) : null}
 
-          <div className="hero-reveal hero-delay-4 mt-8 rounded-[20px] border border-mint/20 bg-gradient-to-r from-mint/10 via-surface/80 to-accent/8 p-4 text-left backdrop-blur-sm dark:from-mint/15 dark:via-surface-dark/80 lg:max-w-md">
+          <div className="hero-reveal hero-delay-4 mt-8 rounded-[20px] border border-white/30 bg-white/50 p-4 text-left shadow-[0_12px_40px_rgba(102,87,232,0.08)] backdrop-blur-md dark:border-white/10 dark:bg-surface-dark/50 lg:max-w-md">
             <div className="flex items-start gap-3">
               <IconBadge icon={Lock} tone="mint" className="h-10 w-10" />
               <div>
@@ -265,24 +389,29 @@ export function LandingHero({
         </div>
 
         <div className="hero-reveal-scale hero-delay-5 relative mx-auto w-full max-w-[440px] lg:max-w-none">
+          <div className="landing-preview-ring absolute -inset-3 rounded-[32px] opacity-70" aria-hidden />
           <div className="absolute -left-8 top-6 hidden h-32 w-32 rounded-full bg-gradient-to-br from-mint/30 to-success/10 blur-3xl lg:block" />
           <div className="absolute -right-6 bottom-4 hidden h-36 w-36 rounded-full bg-gradient-to-br from-accent/30 to-violet-500/10 blur-3xl lg:block" />
-          <div className="absolute -right-2 top-20 hidden rounded-[18px] border border-yellow/25 bg-yellow/15 px-3 py-2 lg:block">
+          <div className="absolute -right-2 top-20 hidden rounded-[18px] border border-yellow/25 bg-yellow/15 px-3 py-2 backdrop-blur-sm lg:block">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">Bonus</p>
-            <p className="font-display text-lg font-bold text-ink dark:text-white">₹2L</p>
+            <p className="font-display text-lg font-bold text-ink dark:text-white">2L received</p>
           </div>
           <HeroPreview className="hero-float relative" />
         </div>
       </div>
 
-      <div className="mx-auto mt-12 grid max-w-6xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {heroStats.map((stat) => (
+      <div className="relative mx-auto mt-12 grid max-w-6xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {heroStats.map((stat, index) => (
           <div
             key={stat.label}
             className={cn(
-              'rounded-[20px] border bg-gradient-to-br p-4 text-center sm:text-left',
+              'landing-stat-card rounded-[20px] border bg-gradient-to-br p-4 text-center sm:text-left',
               toneStyles[stat.tone].card,
               toneStyles[stat.tone].ring,
+              index === 0 && 'hero-reveal hero-delay-4',
+              index === 1 && 'hero-reveal hero-delay-5',
+              index === 2 && 'hero-reveal hero-delay-6',
+              index === 3 && 'hero-reveal hero-delay-6',
             )}
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{stat.label}</p>
@@ -296,63 +425,12 @@ export function LandingHero({
   )
 }
 
-const capabilityCards = [
-  {
-    icon: BarChart3,
-    tone: 'accent' as const,
-    title: 'Dashboard',
-    stat: '₹42.8L net position',
-    text: 'Wealth, investments, loans, cash flow, and quick actions in one colourful snapshot.',
-    span: 'lg:col-span-2',
-  },
-  {
-    icon: Target,
-    tone: 'mint' as const,
-    title: 'Wealth goals',
-    stat: '4 goals · 68% ahead',
-    text: 'Retirement, emergency fund, education, home — ahead, on track, or behind at a glance.',
-    span: '',
-  },
-  {
-    icon: TrendingUp,
-    tone: 'sky' as const,
-    title: 'Investments',
-    stat: '₹37.8L tracked',
-    text: 'Mutual funds, stocks, EPF, FDs, gold, PPF, NPS, cash — allocation, gains, and SIPs.',
-    span: '',
-  },
-  {
-    icon: Landmark,
-    tone: 'peach' as const,
-    title: 'Loans',
-    stat: '₹18L outstanding',
-    text: 'Home loan EMIs, outstanding balances, payment history, and debt progress.',
-    span: '',
-  },
-  {
-    icon: Receipt,
-    tone: 'gold' as const,
-    title: 'Income & expenses',
-    stat: '₹3.8L this month',
-    text: 'Salary, bonus, spending, and monthly statements that feed your cash-flow view.',
-    span: 'lg:col-span-2',
-  },
-  {
-    icon: HeartPulse,
-    tone: 'success' as const,
-    title: 'Financial health',
-    stat: '24% savings rate',
-    text: 'Savings rate, investment rate, loan burden, and goal progress in one overview.',
-    span: 'lg:col-span-2',
-  },
-]
-
 export function LandingCapabilities() {
   return (
     <section className="border-y border-accent/10 bg-gradient-to-b from-accent/[0.06] via-surface/70 to-mint/[0.05] px-5 py-16 sm:px-8 dark:from-accent/10 dark:via-surface-dark/50 dark:to-mint/5">
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl text-center">
-          <SectionEyebrow>The complete financial picture</SectionEyebrow>
+          <SectionEyebrow icon={Wallet}>The complete financial picture</SectionEyebrow>
           <SectionTitle className="mt-4">
             Everything your money touches —{' '}
             <span className="text-accent">in one place</span>
@@ -363,26 +441,9 @@ export function LandingCapabilities() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {capabilityCards.map((item) => (
-            <article
-              key={item.title}
-              className={cn(
-                'landing-card group overflow-hidden rounded-[24px] border bg-gradient-to-br p-5 shadow-[var(--shadow-soft)]',
-                toneStyles[item.tone].card,
-                toneStyles[item.tone].ring,
-                item.span,
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <IconBadge icon={item.icon} tone={item.tone} />
-                <span className={cn('font-display text-sm font-bold tabular-nums', toneStyles[item.tone].stat)}>
-                  {item.stat}
-                </span>
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-ink dark:text-white">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.text}</p>
-            </article>
+        <div className="mt-10 grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featureCards.map((item) => (
+            <FeatureCard key={item.title} {...item} />
           ))}
         </div>
       </div>
@@ -390,73 +451,23 @@ export function LandingCapabilities() {
   )
 }
 
-const featureCards = [
-  {
-    icon: Wallet,
-    tone: 'accent' as const,
-    title: 'Net worth',
-    stat: '₹42.8L',
-    text: 'See assets minus liabilities in one headline number.',
-  },
-  {
-    icon: TrendingUp,
-    tone: 'mint' as const,
-    title: 'Investments',
-    stat: '+12% growth',
-    text: 'Track SIPs, gains, allocation, and wealth growth over time.',
-  },
-  {
-    icon: Building2,
-    tone: 'sky' as const,
-    title: 'Assets & liabilities',
-    stat: '₹60.8L assets',
-    text: 'Home, vehicle, mutual funds, and loans side by side.',
-  },
-  {
-    icon: Receipt,
-    tone: 'peach' as const,
-    title: 'Income & expenses',
-    stat: '₹41.5k spent',
-    text: 'Salary in, spending out — know what remains each month.',
-  },
-  {
-    icon: Target,
-    tone: 'gold' as const,
-    title: 'Financial goals',
-    stat: '68% retirement',
-    text: 'Ahead, on track, or behind — with projected future value.',
-  },
-  {
-    icon: MessageSquareText,
-    tone: 'success' as const,
-    title: 'Natural language',
-    stat: 'Type & go',
-    text: 'Tell Nirvana what happened with your money in plain language.',
-    examples: [
-      'Invested ₹50,000 in HDFC Flexi Cap.',
-      'Spent ₹25,000 on home interiors.',
-      'Received ₹2 lakh bonus.',
-    ],
-  },
-]
-
 export function LandingFeatureShowcase() {
   const highlights = [
     { icon: Zap, label: 'Quick add', value: '5 sec', tone: 'accent' as const },
     { icon: PiggyBank, label: 'Savings rate', value: '24%', tone: 'mint' as const },
-    { icon: IndianRupee, label: 'Free cash flow', value: '₹2.4L', tone: 'gold' as const },
+    { icon: Wallet, label: 'Free cash flow', value: '2.4L', tone: 'gold' as const },
     { icon: BarChart3, label: 'Wealth charts', value: 'Live', tone: 'sky' as const },
   ]
 
   return (
     <section className="px-5 py-16 sm:px-8 sm:py-20">
-      <div className="mx-auto max-w-6xl">
-        <div className="overflow-hidden rounded-[28px] border border-accent/15 bg-gradient-to-br from-accent/10 via-surface to-mint/10 p-6 dark:from-accent/15 dark:via-surface-dark dark:to-mint/10 sm:p-8">
+      <div className="mx-auto max-w-6xl space-y-10">
+        <div className="landing-showcase-panel overflow-hidden rounded-[28px] border border-accent/15 p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
               <SectionEyebrow>Flaunt your finances</SectionEyebrow>
               <SectionTitle className="mt-4">
-                Charts, goals, and <span className="text-mint">₹ numbers</span> that actually mean something
+                Charts, goals, and <span className="text-mint">numbers</span> that actually mean something
               </SectionTitle>
               <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
                 From net worth and asset allocation to monthly cash flow and loan progress — Nirvana
@@ -468,7 +479,7 @@ export function LandingFeatureShowcase() {
                 <div
                   key={item.label}
                   className={cn(
-                    'rounded-[18px] border bg-surface/80 p-3 text-center dark:bg-surface-dark/80',
+                    'rounded-[18px] border bg-surface/80 p-3 text-center backdrop-blur-sm dark:bg-surface-dark/80',
                     toneStyles[item.tone].ring,
                   )}
                 >
@@ -481,41 +492,43 @@ export function LandingFeatureShowcase() {
           </div>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {featureCards.map((item) => (
-            <article
-              key={item.title}
-              className={cn(
-                'landing-card overflow-hidden rounded-[24px] border bg-gradient-to-br p-5',
-                toneStyles[item.tone].card,
-                toneStyles[item.tone].ring,
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <IconBadge icon={item.icon} tone={item.tone} />
-                <span
-                  className={cn(
-                    'rounded-full px-2.5 py-1 text-xs font-bold tabular-nums',
-                    toneStyles[item.tone].badge,
-                  )}
+        <div className="overflow-hidden rounded-[28px] border border-mint/20 bg-gradient-to-br from-mint/10 via-surface to-accent/8 p-6 dark:from-mint/15 dark:via-surface-dark dark:to-accent/10 sm:p-8">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-center">
+            <div>
+              <SectionEyebrow icon={MessageSquareText}>Natural language</SectionEyebrow>
+              <SectionTitle className="mt-4">
+                Say what happened.{' '}
+                <span className="text-accent">Nirvana figures out what to do.</span>
+              </SectionTitle>
+              <p className="mt-4 text-base leading-relaxed text-ink-muted">
+                Nirvana is not a chatbot that answers questions. It reads your sentence, detects
+                financial intent, and extracts the amounts, dates, and entities needed to update your
+                books.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {intentExamples.map((example) => (
+                <div
+                  key={example.input}
+                  className="landing-intent-row flex flex-col gap-2 rounded-[18px] border border-white/40 bg-white/60 p-4 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/60 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  {item.stat}
-                </span>
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-ink dark:text-white">{item.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.text}</p>
-              {'examples' in item && item.examples ? (
-                <ul className="mt-4 space-y-2 border-t border-ink/5 pt-4 dark:border-white/8">
-                  {item.examples.map((example) => (
-                    <li key={example} className="flex items-start gap-2 text-sm text-ink-muted">
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
-                      <span className="leading-relaxed">&ldquo;{example}&rdquo;</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </article>
-          ))}
+                  <p className="text-sm leading-relaxed text-ink dark:text-white">
+                    &ldquo;{example.input}&rdquo;
+                  </p>
+                  <span
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold sm:self-center',
+                      toneStyles[example.tone].badge,
+                    )}
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.2} />
+                    {example.action}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -549,22 +562,13 @@ const trustPoints = [
   },
 ]
 
-const questions = [
-  'How much money do I have?',
-  'Where is my money going?',
-  'How much am I investing?',
-  'How much debt do I have?',
-  'Are my goals on track?',
-  'What will my wealth look like?',
-]
-
 export function LandingTrust() {
   return (
     <section className="border-y border-mint/10 bg-gradient-to-b from-mint/[0.05] via-canvas to-accent/[0.04] px-5 py-16 sm:px-8 dark:from-mint/10 dark:via-canvas-dark dark:to-accent/5">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start lg:gap-14">
           <div>
-            <SectionEyebrow>Trust & privacy</SectionEyebrow>
+            <SectionEyebrow icon={Shield}>Trust & privacy</SectionEyebrow>
             <SectionTitle className="mt-4">Your financial data deserves your trust.</SectionTitle>
             <p className="mt-4 text-base leading-relaxed text-ink-muted">
               Build confidence before you share anything real — without exaggerated security claims
@@ -572,34 +576,41 @@ export function LandingTrust() {
             </p>
 
             <div className="mt-8 rounded-[24px] border border-accent/15 bg-gradient-to-br from-accent/8 to-mint/8 p-5 dark:from-accent/12 dark:to-mint/10">
-              <p className="text-sm font-semibold text-ink dark:text-white">Questions Nirvana helps answer</p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                {questions.map((question) => (
+              <p className="text-sm font-semibold text-ink dark:text-white">Intent, not interrogation</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                Describe transactions naturally. Nirvana parses the sentence and prepares the right
+                action — create a goal, log spending, record a loan payment, or set up a recurring SIP.
+              </p>
+              <ul className="mt-4 space-y-2">
+                {intentExamples.slice(0, 3).map((example) => (
                   <li
-                    key={question}
+                    key={example.input}
                     className="flex items-start gap-2 rounded-[14px] bg-surface/70 px-3 py-2 text-sm leading-relaxed text-ink-muted dark:bg-surface-dark/70"
                   >
-                    <IndianRupee className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
-                    {question}
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
+                    <span>
+                      <span className="text-ink dark:text-white">&ldquo;{example.input}&rdquo;</span>
+                      <span className="mt-0.5 block text-xs font-medium text-accent">{example.action}</span>
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid auto-rows-fr gap-4 sm:grid-cols-2">
             {trustPoints.map((item) => (
               <article
                 key={item.title}
                 className={cn(
-                  'landing-card rounded-[22px] border bg-gradient-to-br p-5',
+                  'landing-card flex h-full flex-col rounded-[22px] border bg-gradient-to-br p-5',
                   toneStyles[item.tone].card,
                   toneStyles[item.tone].ring,
                 )}
               >
                 <IconBadge icon={item.icon} tone={item.tone} className="h-10 w-10" />
                 <h3 className="mt-4 text-base font-semibold text-ink dark:text-white">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.text}</p>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-muted">{item.text}</p>
               </article>
             ))}
           </div>
@@ -623,7 +634,7 @@ export function LandingFinalCta({ onTryDemo }: { onTryDemo: () => void }) {
             See your financial life in one place.
           </h2>
           <p className="relative mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/85">
-            Try Nirvana with sample data — no account required. Explore ₹42.8L net worth, goals,
+            Try Nirvana with sample data — no account required. Explore net worth, goals,
             loans, and cash flow instantly.
           </p>
           <Button
@@ -632,7 +643,7 @@ export function LandingFinalCta({ onTryDemo }: { onTryDemo: () => void }) {
             className="relative mt-8 min-w-[190px] bg-white text-accent hover:bg-white/90"
             onClick={onTryDemo}
           >
-            <IndianRupee className="h-5 w-5" strokeWidth={2.2} />
+            <Play className="h-5 w-5 fill-current" strokeWidth={0} />
             Try Nirvana
           </Button>
         </div>

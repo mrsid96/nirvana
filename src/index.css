@@ -353,6 +353,55 @@ body {
   isolation: isolate;
 }
 
+.landing-aurora {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(102, 87, 232, 0.22), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 20%, rgba(87, 199, 163, 0.16), transparent 55%),
+    radial-gradient(ellipse 45% 35% at 8% 35%, rgba(244, 201, 93, 0.12), transparent 50%);
+}
+
+.landing-hero-spotlight {
+  background: radial-gradient(circle, rgba(102, 87, 232, 0.14) 0%, transparent 68%);
+  filter: blur(12px);
+}
+
+.landing-preview-ring {
+  background: linear-gradient(135deg, rgba(102, 87, 232, 0.35), rgba(87, 199, 163, 0.25), rgba(244, 201, 93, 0.2));
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+}
+
+.landing-showcase-panel {
+  background:
+    linear-gradient(135deg, rgba(102, 87, 232, 0.12), rgba(87, 199, 163, 0.08)),
+    rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.dark .landing-showcase-panel {
+  background:
+    linear-gradient(135deg, rgba(102, 87, 232, 0.18), rgba(87, 199, 163, 0.1)),
+    rgba(20, 20, 24, 0.55);
+}
+
+.landing-stat-card {
+  backdrop-filter: blur(8px);
+}
+
+.landing-intent-row {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-intent-row:hover {
+    transform: translateX(4px);
+    border-color: rgba(102, 87, 232, 0.25);
+  }
+}
+
 .landing-grid {
   background-image:
     linear-gradient(to right, rgba(102, 87, 232, 0.05) 1px, transparent 1px),
@@ -376,10 +425,10 @@ body {
 .landing-glow-a::before {
   top: -8rem;
   left: 50%;
-  width: min(42rem, 90vw);
-  height: 20rem;
+  width: min(48rem, 95vw);
+  height: 24rem;
   transform: translateX(-50%);
-  background: rgba(102, 87, 232, 0.16);
+  background: rgba(102, 87, 232, 0.22);
 }
 
 .landing-glow-b::before {
