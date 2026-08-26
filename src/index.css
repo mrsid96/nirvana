@@ -487,6 +487,11 @@ select {
   .hero-shimmer-text {
     animation: none;
   }
+  .landing-money-float,
+  .landing-money-chip-a,
+  .landing-money-chip-b {
+    animation: none;
+  }
   .hero-reveal-on-scroll {
     opacity: 1;
     transform: none;
