@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   LandingCapabilities,
-  LandingFeatures,
+  LandingFeatureShowcase,
   LandingFinalCta,
   LandingFooter,
   LandingHero,
@@ -50,7 +50,7 @@ export function LoginPage() {
           signInReady={ready}
         />
         <LandingCapabilities />
-        <LandingFeatures />
+        <LandingFeatureShowcase />
         <LandingTrust />
         <LandingFinalCta onTryDemo={onTryDemo} />
       </main>

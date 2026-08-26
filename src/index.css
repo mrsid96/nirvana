@@ -387,7 +387,48 @@ body {
   top: 28rem;
   width: 18rem;
   height: 18rem;
-  background: rgba(87, 199, 163, 0.12);
+  background: rgba(87, 199, 163, 0.18);
+}
+
+.landing-glow-c::before {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(72px);
+  left: -8rem;
+  bottom: 8rem;
+  width: 22rem;
+  height: 22rem;
+  background: rgba(244, 201, 93, 0.14);
+}
+
+.landing-money-float {
+  animation: landing-money-drift 14s ease-in-out infinite;
+}
+
+.landing-money-chip-a {
+  animation: hero-float 4.5s ease-in-out infinite;
+}
+
+.landing-money-chip-b {
+  animation: hero-float-delayed 5s ease-in-out infinite;
+}
+
+.landing-money-floaters {
+  opacity: 0.55;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 85%);
+}
+
+@keyframes landing-money-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-18px) rotate(6deg);
+    opacity: 0.7;
+  }
 }
 
 .landing-card {
