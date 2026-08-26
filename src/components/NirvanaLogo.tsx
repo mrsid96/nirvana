@@ -40,7 +40,7 @@ export function NirvanaLoaderLogo({
   )
 }
 
-/** Horizontal logo — icon + wordmark side by side */
+/** Horizontal logo — transparent wordmark for nav and sidebar */
 export function NirvanaHorizontalLogo({
   className,
   size = 'nav',
