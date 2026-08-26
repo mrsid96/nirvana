@@ -1,7 +1,6 @@
 import {
   ArrowDownRight,
   ArrowUpRight,
-  IndianRupee,
   PiggyBank,
   Target,
   TrendingUp,
@@ -38,9 +37,6 @@ export function HeroPreview({ className }: { className?: string }) {
       aria-hidden
     >
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-accent/20 via-mint/10 to-yellow/10" />
-      <div className="landing-money-chip landing-money-chip-a absolute -right-2 top-16 rounded-full bg-yellow/20 px-3 py-1 text-xs font-bold text-yellow-700 dark:text-yellow-300">
-        ₹
-      </div>
       <div className="landing-money-chip landing-money-chip-b absolute -left-1 bottom-24 rounded-full bg-mint/20 px-3 py-1 text-xs font-bold text-mint dark:text-mint">
         +12%
       </div>
@@ -48,7 +44,6 @@ export function HeroPreview({ className }: { className?: string }) {
       <div className="relative flex items-start justify-between gap-4">
         <div>
           <p className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-            <IndianRupee className="h-3 w-3" strokeWidth={2.5} />
             Net worth
           </p>
           <p className="font-display mt-3 text-[2.5rem] font-semibold leading-none tracking-tight text-ink dark:text-white">
