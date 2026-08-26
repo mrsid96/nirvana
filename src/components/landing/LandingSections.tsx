@@ -181,8 +181,8 @@ export function LandingNav({
 }) {
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-accent/10 bg-canvas/90 backdrop-blur-xl dark:border-accent/15 dark:bg-canvas-dark/90">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <NirvanaHorizontalLogo size="nav" />
+      <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-4 px-5 sm:h-[4.5rem] sm:px-8">
+        <NirvanaHorizontalLogo size="nav" className="shrink-0" />
         <form onSubmit={onSignIn}>
           <Button type="submit" variant="secondary" disabled={signInBusy || !signInReady}>
             <GoogleMark />

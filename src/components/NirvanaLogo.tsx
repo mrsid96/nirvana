@@ -16,7 +16,7 @@ const horizontalSizes = {
   sm: 'h-8 w-auto',
   md: 'h-10 w-auto',
   lg: 'h-12 w-auto',
-  nav: 'h-9 w-auto',
+  nav: 'h-12 w-auto sm:h-14',
   sidebar: 'h-auto w-full',
 } as const
 
@@ -40,7 +40,7 @@ export function NirvanaLoaderLogo({
   )
 }
 
-/** Horizontal logo — icon + wordmark side by side */
+/** Horizontal logo — transparent wordmark for nav and sidebar */
 export function NirvanaHorizontalLogo({
   className,
   size = 'nav',
